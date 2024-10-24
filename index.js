@@ -4,5 +4,5 @@ import './src/database.js';      // Importación de database.js desde src/
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
-  console.log(Server started on port ${PORT});
+  console.log(`Server started on port ${PORT}`); // Usa backticks para interpolación
 });
