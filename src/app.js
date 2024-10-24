@@ -8,6 +8,9 @@ import mongoose from './database.js'; // Importar la conexión a la base de dato
 // Importación de las rutas desde src/routes
 import user from './routes/User.routes.js'; 
 import prueba from './routes/prueba.js';
+import politicas from './routes/Politicas.routes.js';
+import terminos from './routes/Terminos.routes.js';
+import deslinde from './routes/Deslinde.routes.js';
 
 const app = express();
 
@@ -28,7 +31,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-        mongoUrl: 'mongodb://localhost:27017/Refaccionaria', // O usa atlasURI para producción
+        mongoUrl: 'mongodb://localhost:27017/proyecto-corazon', // O usa atlasURI para producción
         mongooseConnection: mongoose.connection // Asegurar que MongoStore use la conexión de Mongoose
     }),
     cookie: {
@@ -42,6 +45,9 @@ app.use(session({
 // Rutas
 app.use('/api/auth', user);
 app.use('/api/users', prueba);
+app.use('/api/docs', politicas);
+app.use('/api/docs', terminos);
+app.use('/api/docs', deslinde);
 
 // Manejo de rutas no encontradas (404)
 app.use((req, res, next) => {

@@ -4,7 +4,7 @@ import { transporter } from '../libs/emailConfig.js'; // Asegúrate de la ruta c
 export const enviarCorreoPrueba = async (req, res) => {
   try {
     const info = await transporter.sendMail({
-      from: '"Soporte 👻" <jose1fat@gmail.com>', // Opcional: nombre de remitente
+      from: '"Soporte 👻" <yadi.bta03@gmail.com>', // Opcional: nombre de remitente
       to: "20220673@uthh.edu.mx", // Cambia esto por un correo de prueba
       subject: "Prueba de Nodemailer ✔️", 
       text: "Este es un correo de prueba desde Nodemailer", 
