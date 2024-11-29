@@ -30,7 +30,8 @@ router.get('/admin/failed-login-attempts', isAuthenticated, isAdmin, userControl
 
 // Bloquear usuario
 router.post('/admin/block-user', isAuthenticated, isAdmin, userController.blockUser);
-
+// Bloquear usuario por tiempo
+router.post('/admin/block-user-temporarily', isAuthenticated, isAdmin, userController.blockUserTemporarily);
 // Desbloquear usuario
 router.post('/admin/unblock-user', isAuthenticated, isAdmin, userController.unblockUser);
 
