@@ -9,14 +9,13 @@ router.post('/signup', userController.signUp); // Registro de usuario
 router.post('/login', userController.login); // Inicio de sesión y entrega de token
 router.get('/verify/:token', userController.verifyAccount); // Verificar cuenta por token
 router.post('/send-reset-email', userController.sendPasswordResetLink);
-router.post('/reset-password/:token', userController.resetPassword);
-
 router.post('/reset-password/:token', userController.resetPassword); // Restablecer la contraseña
 
 // Rutas protegidas (requieren token de autenticación)
 router.get('/profile', isAuthenticated, userController.getProfile); // Perfil del usuario 
 router.get('/check-session', isAuthenticated, userController.checkSession); // Verificar la sesión
 router.post('/logout', isAuthenticated, userController.logout); // Cerrar sesión
+router.post('/verify-secret-question', userController.verifySecretQuestion);
 
 
 // Ruta protegida para obtener todos los usuarios (solo admin)
@@ -38,5 +37,7 @@ router.post('/admin/unblock-user', isAuthenticated, isAdmin, userController.unbl
 // Ruta del admin para ver inicios de sesión recientes
 router.get('/admin/recent-logins', isAuthenticated, isAdmin, userController.getRecentLogins);
 
+router.delete('/admin/users/:id', isAuthenticated, isAdmin, userController.deleteUser);
 
 export default router;
+

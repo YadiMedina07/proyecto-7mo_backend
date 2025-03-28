@@ -1,34 +1,38 @@
-import User from "../models/User.model.js";
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { transporter } from '../libs/emailConfing.js';
 
-// Variables de entorno para SECRET
-const SECRET = process.env.SECRET || 'super-secret-key';
-const MAX_FAILED_ATTEMPTS = 5;  
+// 🔒 Mejores prácticas de seguridad en Node.js 
+// Variables de entorno para SECRET (Evitar claves por defecto en producción)
+const prisma = new PrismaClient();
+const SECRET = process.env.SECRET || 'super-secret-key'; // ⚠ No almacenar secretos en código fuente
+const MAX_FAILED_ATTEMPTS = 5;
 const LOGIN_TIMEOUT = 1 * 60 * 1000;
-
 // Registro de usuario y verificación de cuenta
 export const signUp = async (req, res) => {
     try {
-        const { 
-            name, 
-            lastname, 
-            email, 
-            telefono, 
-            fechadenacimiento, 
-            user, 
-            preguntaSecreta, 
-            respuestaSecreta, 
-            password 
+        const {
+            name,
+            lastname,
+            email,
+            telefono,
+            fechadenacimiento,
+            user,
+            preguntaSecreta,
+            respuestaSecreta,
+            password
         } = req.body;
 
-        if (!name || !lastname || name.length < 2 || lastname.length < 2) {
+        if (!name || !lastname || name.length < 3 || lastname.length < 3) {
             return res.status(400).json({ message: "Datos incompletos o inválidos" });
         }
 
-        // Verificar si el correo ya está registrado
-        const existingUser = await User.findOne({ email });
+        // Verificar si el correo ya está registrado en la base de datos
+        const existingUser = await prisma.usuarios.findUnique({
+            where: { email }
+        });
+
         if (existingUser) {
             return res.status(400).json({ message: "El correo ya existe" });
         }
@@ -36,42 +40,41 @@ export const signUp = async (req, res) => {
         // Hashear la contraseña
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Crear un nuevo usuario
-        const newUser = new User({ 
-            name, 
-            lastname, 
-            email, 
-            telefono, 
-            fechadenacimiento, 
-            user, 
-            preguntaSecreta, 
-            respuestaSecreta, 
-            password: hashedPassword, 
-            verified: false 
-        });
-
         // Generar un token de verificación
-        const token = jwt.sign({ email: newUser.email }, SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ email }, SECRET, { expiresIn: '1h' });
 
         // Enlace de verificación
-        //const verificationUrl = `http://localhost:3000/verify/${token}`;
-        const verificationUrl = `https://proyecto-7mo-fronted.vercel.app/verify/${token}`;
+        //const verificationUrl = `https://proyecto-7mo-fronted.vercel.app/verify/${token}`;
+        const verificationUrl = `http://localhost:3000/verify/${token}`;
 
         // Enviar correo de verificación
         await transporter.sendMail({
             from: '"Soporte 👻" <yadi.bta03@gmail.com>',
-            to: newUser.email,
+            to: email,
             subject: "Verifica tu cuenta ✔️",
             html: `
-                <p>Hola ${newUser.name},</p>
+                <p>Hola ${name},</p>
                 <p>Haz clic en el enlace para verificar tu cuenta:</p>
                 <a href="${verificationUrl}">Verificar Cuenta</a>
                 <p>Este enlace expirará en 1 hora.</p>
             `
         });
 
-        // Guardar usuario en la base de datos
-        await newUser.save();
+        // Guardar usuario en la base de datos con Prisma
+        await prisma.usuarios.create({
+            data: {
+                name,
+                lastname,
+                email,
+                telefono,
+                fechadenacimiento: new Date(fechadenacimiento), // Convertir a tipo Date
+                user,
+                preguntaSecreta,
+                respuestaSecreta,
+                password: hashedPassword,
+                verified: false
+            }
+        });
 
         // Respuesta exitosa
         res.status(200).json({ message: "Usuario registrado exitosamente. Revisa tu correo para verificar tu cuenta." });
@@ -84,25 +87,29 @@ export const signUp = async (req, res) => {
 export const verifyAccount = async (req, res) => {
     try {
         const { token } = req.params;
-        
+
         // Verificar el token
         const decoded = jwt.verify(token, SECRET);
 
         // Buscar al usuario con el email decodificado desde el token
-        const user = await User.findOne({ email: decoded.email });
+        const user = await prisma.usuarios.findUnique({
+            where: { email: decoded.email }
+        });
 
         if (!user) return res.status(404).json({ message: "Usuario no encontrado." });
         if (user.verified) return res.status(400).json({ message: "La cuenta ya está verificada." });
 
-        // Marcar al usuario como verificado y guardar los cambios
-        user.verified = true;
-        await user.save();
+        // Actualizar usuario para marcarlo como verificado
+        await prisma.usuarios.update({
+            where: { email: decoded.email },
+            data: { verified: true }
+        });
 
         res.status(200).json({ message: "Cuenta verificada exitosamente." });
     } catch (error) {
         console.error("Error al verificar la cuenta:", error.message || error);
 
-        // Verificar si el error es de token expirado
+        // Verificar si el error es de token expirado o inválido
         if (error.name === 'TokenExpiredError') {
             return res.status(400).json({ message: "Token expirado." });
         } else if (error.name === 'JsonWebTokenError') {
@@ -113,157 +120,223 @@ export const verifyAccount = async (req, res) => {
     }
 };
 
-// Controlador login para autenticación con JWT en User.controller.js
+
 export const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        if (!email || !password) 
+        // Validación mínima
+        if (!email || !password) {
             return res.status(400).json({ message: "Correo y contraseña son requeridos" });
+        }
 
-        const user = await User.findOne({ email });
-        if (!user) 
-            return res.status(400).json({ message: "Usuario no encontrado" });
+        // 1. Buscar al usuario en la tabla "Usuarios" por email
+        const user = await prisma.usuarios.findUnique({
+            where: { email },
+        });
 
-        // Verificar si el usuario está bloqueado
-        if (user.lockedUntil && user.lockedUntil > Date.now()) {
-            const remainingTime = Math.ceil((user.lockedUntil - Date.now()) / 1000);
+        if (!user) {
+            return res.status(400).json({ message: "Credenciales invalidas" });
+        }
+
+        // 2. Verificar si el usuario está actualmente bloqueado
+        if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+            const remainingTime = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 1000);
             return res.status(403).json({
                 message: `Tu cuenta está bloqueada. Inténtalo de nuevo en ${remainingTime} segundos.`,
             });
         }
 
-        // Comparar la contraseña
+        // 3. Comparar contraseñas con bcrypt
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            user.failedLoginAttempts += 1;
+            // Incrementar los intentos fallidos
+            const newFailedAttempts = user.failedLoginAttempts + 1;
 
-            // Bloqueo después de demasiados intentos fallidos
-            if (user.failedLoginAttempts >= MAX_FAILED_ATTEMPTS) {
-                const baseLockTime = 1 * 60 * 1000; // Tiempo base de bloqueo (1 minuto)
-                const lockTime = baseLockTime * Math.pow(2, user.lockCount); // Incremento exponencial
-                user.lockedUntil = Date.now() + lockTime;
-                user.lockCount += 1; // Incrementar el contador de bloqueos
-                await user.save();
+            if (newFailedAttempts >= MAX_FAILED_ATTEMPTS) {
+                // Bloqueo exponencial
+                const lockTime = LOGIN_TIMEOUT * Math.pow(2, user.lockCount);
+                await prisma.usuarios.update({
+                    where: { id: user.id },
+                    data: {
+                        failedLoginAttempts: newFailedAttempts,
+                        lockedUntil: new Date(Date.now() + lockTime),
+                        lockCount: user.lockCount + 1,
+                    },
+                });
                 return res.status(403).json({
-                    message: `Cuenta bloqueada debido a demasiados intentos fallidos. Inténtalo más tarde.`,
+                    message: "Cuenta bloqueada debido a demasiados intentos fallidos. Inténtalo más tarde.",
                 });
             }
 
-            await user.save();
+            // Aún no alcanza el máximo: solo incrementa
+            await prisma.usuarios.update({
+                where: { id: user.id },
+                data: {
+                    failedLoginAttempts: newFailedAttempts,
+                },
+            });
+
             return res.status(400).json({
-                message:` Contraseña incorrecta. Intentos fallidos: ${user.failedLoginAttempts}/${MAX_FAILED_ATTEMPTS}`,
+                message: `Credenciales invalidas. Intentos fallidos: ${newFailedAttempts}/${MAX_FAILED_ATTEMPTS}`,
             });
         }
 
-        // Restablecer intentos fallidos y desbloquear si la contraseña es correcta
-        user.failedLoginAttempts = 0;
-        user.lockedUntil = null;
-        user.lockCount = 0; // Reinicia el contador de bloqueos tras un inicio exitoso
-        
-        // Registrar el inicio de sesión
-        user.lastLogin = new Date(); // Actualizar el último inicio de sesión
-        if (user.loginHistory.length >= 10) {
-            user.loginHistory.shift(); // Elimina el inicio de sesión más antiguo si hay más de 10
+        // 4. Contraseña correcta -> resetear intentos fallidos y desbloquear
+        let updatedUser = await prisma.usuarios.update({
+            where: { id: user.id },
+            data: {
+                failedLoginAttempts: 0,
+                lockedUntil: null,
+                lockCount: 0,
+                lastLogin: new Date(), // Registra el último inicio de sesión
+            },
+        });
+
+        // 5. Verificar si el usuario está verificado
+        if (!updatedUser.verified) {
+            return res.status(403).json({
+                message: "Tu cuenta aún no ha sido verificada. Revisa tu correo electrónico.",
+            });
         }
-        user.loginHistory.push(new Date()); // Agregar la fecha actual al historial
-        
-        await user.save();
 
-        // Verificar si la cuenta está verificada
-        if (!user.verified) 
-            return res.status(403).json({ message: "Tu cuenta aún no ha sido verificada. Revisa tu correo electrónico." });
+        // 6.  Registrar el login en la tabla LoginHistory
+        // Si quieres limitar a los últimos 10 logins:
+        const countHistory = await prisma.loginHistory.count({
+            where: { usuarioId: updatedUser.id },
+        });
+        if (countHistory >= 10) {
+            const oldest = await prisma.loginHistory.findMany({
+                where: { usuarioId: updatedUser.id },
+                orderBy: { loginAt: 'asc' },
+                take: 1,
+            });
+            if (oldest.length > 0) {
+                await prisma.loginHistory.delete({ where: { id: oldest[0].id } });
+            }
+        }
+        // Crear un nuevo registro de historial
+        await prisma.loginHistory.create({
+            data: {
+                usuarioId: updatedUser.id,
+                loginAt: new Date(), // o se usa el default(now()) de tu schema
+            },
+        });
 
-        // Generar token
+
+        // 7. Generar el token JWT
         const token = jwt.sign(
-            { userId: user._id, role: user.role, name: user.name },
+            { userId: updatedUser.id, role: updatedUser.role, name: updatedUser.name },
             SECRET,
             { expiresIn: '2h' }
         );
 
-        res.status(200).json({
+        // 8. Guardar el token en una cookie segura
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',  // false en desarrollo, true en producción
+            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+            path: '/',
+            maxAge: 2 * 60 * 60 * 1000,
+        });
+
+        // 9. Responder sin incluir el token en el body
+        return res.status(200).json({
             message: "Inicio de sesión exitoso",
-            token,
             user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                lastLogin: user.lastLogin, // Devolver último inicio de sesión
+                id: updatedUser.id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                lastLogin: updatedUser.lastLogin,
             },
         });
     } catch (error) {
         console.error("Error en login:", error);
-        res.status(500).json({ message: "Error interno del servidor" });
+        return res.status(500).json({ message: "Error interno del servidor" });
     }
 };
 
+// checkSession
 
-
-// Controlador checkSession en User.controller.js
 export const checkSession = (req, res) => {
+    const { token } = req.cookies;
+    if (!token) {
+        return res.status(200).json({ isAuthenticated: false });
+    }
     try {
-        if (req.session.userId) {
-            return res.status(200).json({
-                isAuthenticated: true,
-                user: {
-                    id: req.session.userId,
-                    email: req.session.email,
-                    name: req.session.name, // Incluye el nombre
-                },
-            });
-        } else {
-            return res.status(200).json({ isAuthenticated: false });
-        }
-    } catch (error) {
-        console.error("Error en checkSession:", error);
-        return res.status(500).json({ message: "Error en el servidor" });
+        const decoded = jwt.verify(token, SECRET);
+        return res.status(200).json({
+            isAuthenticated: true,
+            user: {
+                id: decoded.userId,
+                role: decoded.role,
+                name: decoded.name,
+            },
+        });
+    } catch (err) {
+        return res.status(200).json({ isAuthenticated: false });
     }
 };
 
 //cerrar sesion
 export const logout = (req, res) => {
-    req.session.destroy((err) => {
-        if (err) {
-            return res.status(500).json({ message: "Error al cerrar sesión" });
-        }
+    // 1. Borrar la cookie que llamaste "token" en el login
+    res.clearCookie('token');
 
-        res.clearCookie("connect.sid"); // Borra la cookie de sesión
-        return res.status(200).json({ message: "Sesión cerrada con éxito" });
-    });
+    // 2. Devolver un mensaje de éxito
+    return res.status(200).json({ message: "Sesión cerrada con éxito" });
 };
 
-// Middleware para verificar token
 export const verifyToken = (req, res, next) => {
-    const token = req.headers["x-access-token"];
-    if (!token) return res.status(403).json({ message: "No token provided" });
+    const token = req.headers["x-access-token"] || req.cookies?.token; // Soporta token en headers y cookies
+
+    if (!token) {
+        return res.status(403).json({ message: "No token provided" });
+    }
 
     try {
         const decoded = jwt.verify(token, SECRET);
-        req.userId = decoded.userId;
-        req.role = decoded.role;
+        req.user = { id: decoded.userId, role: decoded.role }; // Guardar datos en req.user
         next();
     } catch (error) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-};
-
-// Obtener perfil del usuario autenticado
-export const getProfile = async (req, res) => {
-    try {
-        const user = await User.findById(req.userId).select("-password");
-        if (!user) return res.status(404).json({ message: "Usuario no encontrado." });
-        res.status(200).json(user);
-    } catch (error) {
-        console.error("Error obteniendo perfil:", error);
-        res.status(500).json({ message: "Error interno del servidor." });
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({ message: "Token expirado" });
+        } else if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({ message: "Token inválido" });
+        } else {
+            return res.status(401).json({ message: "No autorizado" });
+        }
     }
 };
 
 // Obtener todos los usuarios solo para admins
 export const getAllUsers = async (req, res) => {
     try {
-        const users = await User.find().select("-password");
+        const users = await prisma.usuarios.findMany({
+            select: {
+                id: true,
+                name: true,
+                lastname: true,
+                email: true,
+                telefono: true,
+                fechadenacimiento: true,
+                user: true,
+                preguntaSecreta: true,
+                respuestaSecreta: true,
+                verified: true,
+                role: true,
+                failedLoginAttempts: true,
+                lockedUntil: true,
+                blocked: true,
+                lockCount: true,
+                lastLogin: true,
+                createdAt: true,
+                updatedAt: true,
+                // password NO se incluye por seguridad
+            }
+        });
+
         res.status(200).json(users);
     } catch (error) {
         console.error("Error en getAllUsers:", error);
@@ -275,26 +348,80 @@ export const getAllUsers = async (req, res) => {
 export const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
+  
     try {
-        const decoded = jwt.verify(token, SECRET);
-        const user = await User.findById(decoded.userId);
-        if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-        user.password = hashedPassword;
-        await user.save();
-        res.status(200).json({ message: "Contraseña actualizada exitosamente" });
+      // Verificar el token
+      const decoded = jwt.verify(token, SECRET);
+  
+      // Buscar al usuario en la base de datos
+      const user = await prisma.usuarios.findUnique({
+        where: { id: decoded.userId }
+      });
+  
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+  
+      // Validar la contraseña según los requisitos:
+      if (password.length < 8 || password.length > 30) {
+        return res.status(400).json({ message: "La contraseña debe tener entre 8 y 30 caracteres." });
+      }
+      if (!/[A-Za-z]/.test(password)) {
+        return res.status(400).json({ message: "La contraseña debe contener al menos una letra." });
+      }
+      if (!/\d/.test(password)) {
+        return res.status(400).json({ message: "La contraseña debe contener al menos un número." });
+      }
+      if (!/[A-Z]/.test(password)) {
+        return res.status(400).json({ message: "La contraseña debe contener al menos una letra mayúscula." });
+      }
+      if (!/[^A-Za-z0-9]/.test(password)) {
+        return res.status(400).json({ message: "La contraseña debe contener al menos un carácter especial." });
+      }
+  
+      // Hashear la nueva contraseña
+      const hashedPassword = await bcrypt.hash(password, 10);
+  
+      // Actualizar la contraseña en la base de datos
+      await prisma.usuarios.update({
+        where: { id: user.id },
+        data: { password: hashedPassword }
+      });
+  
+      res.status(200).json({ message: "Contraseña actualizada exitosamente" });
+  
     } catch (error) {
-        console.error("Error en resetPassword:", error);
-        res.status(400).json({ message: "Token inválido o expirado" });
+      console.error("Error en resetPassword:", error);
+  
+      // Manejo específico de errores de JWT
+      if (error.name === "TokenExpiredError") {
+        return res.status(400).json({ message: "El token ha expirado" });
+      } else if (error.name === "JsonWebTokenError") {
+        return res.status(400).json({ message: "Token inválido" });
+      }
+  
+      res.status(500).json({ message: "Error interno del servidor" });
     }
-};
+  };
+  
 
 
 //informacion de usuarios
 export const getRecentUsers = async (req, res) => {
     try {
-        const recentUsers = await User.find().sort({ createdAt: -1 }).limit(5);
+        const recentUsers = await prisma.usuarios.findMany({
+            orderBy: { createdAt: "desc" }, // Ordenar por fecha de creación descendente (los más recientes primero)
+            take: 5, // Limitar a 5 usuarios
+            select: {
+                id: true,
+                name: true,
+                lastname: true,
+                email: true,
+                telefono: true,
+                createdAt: true,
+            },
+        });
+
         res.status(200).json(recentUsers);
     } catch (error) {
         console.error("Error al obtener usuarios recientes:", error);
@@ -302,22 +429,33 @@ export const getRecentUsers = async (req, res) => {
     }
 };
 
-//informacion de usuarios bloqueados
 export const getRecentBlockedUsers = async (req, res) => {
     try {
-        const recentBlockedUsers = await User.find({
-            $or: [
-                { lockedUntil: { $exists: true, $gt: new Date() } }, // Bloqueados temporalmente
-                { blocked: true }, // Bloqueados permanentemente
-                { updatedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }, // Desbloqueados recientemente (últimas 24 horas)
-            ],
-        })
-            .sort({ updatedAt: -1 }) // Ordenar por última actualización
-            .limit(10); // Limitar el resultado a 10 usuarios
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // Últimas 24 horas
+
+        const recentBlockedUsers = await prisma.usuarios.findMany({
+            where: {
+                OR: [
+                    { lockedUntil: { not: null, gt: new Date() } }, // Bloqueados temporalmente
+                    { blocked: true }, // Bloqueados permanentemente
+                    { updatedAt: { gte: twentyFourHoursAgo } }, // Desbloqueados recientemente (últimas 24 horas)
+                ],
+            },
+            orderBy: { updatedAt: "desc" }, // Ordenar por última actualización
+            take: 10, // Limitar el resultado a 10 usuarios
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                blocked: true,
+                lockedUntil: true,
+                updatedAt: true,
+            },
+        });
 
         // Enriquecer los datos de los usuarios
         const enrichedData = recentBlockedUsers.map(user => ({
-            id: user._id,
+            id: user.id,
             name: user.name,
             email: user.email,
             blockedPermanently: user.blocked,
@@ -325,10 +463,10 @@ export const getRecentBlockedUsers = async (req, res) => {
             currentlyBlocked: user.blocked || (user.lockedUntil && user.lockedUntil > new Date()),
             blockedType: user.blocked
                 ? "Permanent"
-                : user.lockedUntil > new Date()
-                ? "Temporary"
-                : "None",
-            wasRecentlyBlocked: user.updatedAt >= new Date(Date.now() - 24 * 60 * 60 * 1000),
+                : user.lockedUntil && user.lockedUntil > new Date()
+                    ? "Temporary"
+                    : "None",
+            wasRecentlyBlocked: user.updatedAt >= twentyFourHoursAgo,
             lastUpdated: user.updatedAt,
         }));
 
@@ -339,33 +477,39 @@ export const getRecentBlockedUsers = async (req, res) => {
     }
 };
 
-  
 
 
-  export const sendPasswordResetLink = async (req, res) => {
+
+export const sendPasswordResetLink = async (req, res) => {
     const { email } = req.body;
 
     try {
-        // Buscar el usuario por email
-        const user = await User.findOne({ email });
+        // Buscar el usuario por email en la base de datos
+        const user = await prisma.usuarios.findUnique({
+            where: { email },
+        });
+
         if (!user) {
             return res.status(404).json({ message: "Usuario no encontrado" });
         }
-        // Verificar si el usuario está bloqueado
-        if (user.lockedUntil && user.lockedUntil > Date.now()) {
-            const remainingTime = Math.ceil((user.lockedUntil - Date.now()) / 1000);
+
+        // Verificar si el usuario está bloqueado temporalmente
+        if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+            const remainingTime = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 1000);
             return res.status(403).json({
                 message: `Tu cuenta está bloqueada. Inténtalo de nuevo en ${remainingTime} segundos.`,
             });
         }
+
         // Generar un token de restablecimiento de contraseña (expira en 1 hora)
-        const token = jwt.sign({ email: user.email, userId: user._id }, SECRET, {
+        const token = jwt.sign({ email: user.email, userId: user.id }, SECRET, {
             expiresIn: "1h",
         });
 
-        // Crear el enlace de restablecimiento
-        //const resetUrl = `http://localhost:3000/restorepassword/${token}`;
-        const resetUrl = `https://proyecto-7mo-fronted.vercel.app/restorepassword/${token}`;
+        // Crear el enlace de restablecimiento de contraseña
+        //const resetUrl = `https://proyecto-7mo-fronted.vercel.app/restorepassword/${token}`;
+        const resetUrl =`http://localhost:3000/restorepassword/${token}`;
+
 
         // Enviar el correo con el enlace de restablecimiento de contraseña
         await transporter.sendMail({
@@ -381,6 +525,7 @@ export const getRecentBlockedUsers = async (req, res) => {
         });
 
         res.status(200).json({ message: "Correo de restablecimiento enviado con éxito." });
+
     } catch (error) {
         console.error("Error en sendPasswordResetLink:", error);
         res.status(500).json({ message: "Error interno del servidor" });
@@ -390,19 +535,29 @@ export const getRecentBlockedUsers = async (req, res) => {
 
 export const getFailedLoginAttempts = async (req, res) => {
     try {
-        const usersWithFailedAttempts = await User.find({ failedLoginAttempts: { $gt: 0 } })
-            .sort({ failedLoginAttempts: -1 }) // Ordenar por mayor cantidad de intentos fallidos
-            .limit(10) // Límite opcional
-            .select('name email failedLoginAttempts lockedUntil updatedAt'); // Selecciona campos relevantes
+        const usersWithFailedAttempts = await prisma.usuarios.findMany({
+            where: { failedLoginAttempts: { gt: 0 } }, // Filtrar usuarios con intentos fallidos
+            orderBy: { failedLoginAttempts: "desc" }, // Ordenar por mayor cantidad de intentos fallidos
+            take: 10, // Limitar a 10 usuarios
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                failedLoginAttempts: true,
+                lockedUntil: true,
+                updatedAt: true,
+            },
+        });
 
+        // Enriquecer datos
         const enrichedData = usersWithFailedAttempts.map(user => ({
-            id: user._id, // Incluye el _id del usuario
+            id: user.id,
             name: user.name,
             email: user.email,
             failedLoginAttempts: user.failedLoginAttempts,
             lockedUntil: user.lockedUntil,
             lastFailedAttempt: user.updatedAt,
-            isLocked: user.lockedUntil && user.lockedUntil > Date.now() ? true : false
+            isLocked: user.lockedUntil && user.lockedUntil.getTime() > Date.now()
         }));
 
         res.status(200).json(enrichedData);
@@ -418,21 +573,28 @@ export const blockUser = async (req, res) => {
     try {
         const { userId } = req.body;
 
-        // Verifica que se envíe el ID del usuario
+        // Verificar que se envíe el ID del usuario
         if (!userId) {
             return res.status(400).json({ message: "ID de usuario es requerido." });
         }
 
         // Buscar al usuario
-        const user = await User.findById(userId);
+        const user = await prisma.usuarios.findUnique({
+            where: { id: userId },
+        });
+
         if (!user) {
             return res.status(404).json({ message: "Usuario no encontrado." });
         }
 
         // Bloquear al usuario de forma permanente
-        user.blocked = true;
-        user.lockedUntil = null; // Limpia cualquier bloqueo temporal previo
-        await user.save();
+        await prisma.usuarios.update({
+            where: { id: userId },
+            data: {
+                blocked: true,
+                lockedUntil: null, // Limpia cualquier bloqueo temporal previo
+            },
+        });
 
         res.status(200).json({ message: "Usuario bloqueado permanentemente." });
     } catch (error) {
@@ -441,29 +603,34 @@ export const blockUser = async (req, res) => {
     }
 };
 
-
-
 export const unblockUser = async (req, res) => {
     try {
         const { userId } = req.body;
 
-        // Verifica que se envíe el ID del usuario
+        // Verificar que se envíe el ID del usuario
         if (!userId) {
             return res.status(400).json({ message: "ID de usuario es requerido." });
         }
 
         // Buscar al usuario
-        const user = await User.findById(userId);
+        const user = await prisma.usuarios.findUnique({
+            where: { id: userId },
+        });
+
         if (!user) {
             return res.status(404).json({ message: "Usuario no encontrado." });
         }
 
-        // Desbloquear al usuario
-        user.lockedUntil = null; // Eliminar bloqueo temporal
-        user.blocked = false; // Eliminar bloqueo permanente
-        user.failedLoginAttempts = 0; // Restablecer intentos fallidos
-        user.lockCount = 0; // Restablecer contador de bloqueos
-        await user.save();
+        // Desbloquear al usuario y restablecer valores
+        await prisma.usuarios.update({
+            where: { id: userId },
+            data: {
+                lockedUntil: null, // Eliminar bloqueo temporal
+                blocked: false, // Eliminar bloqueo permanente
+                failedLoginAttempts: 0, // Restablecer intentos fallidos
+                lockCount: 0, // Restablecer contador de bloqueos
+            },
+        });
 
         res.status(200).json({ message: "Usuario desbloqueado exitosamente." });
     } catch (error) {
@@ -474,10 +641,17 @@ export const unblockUser = async (req, res) => {
 
 export const getRecentLogins = async (req, res) => {
     try {
-        const recentLogins = await User.find({ lastLogin: { $exists: true } })
-            .sort({ lastLogin: -1 }) // Ordenar por el inicio de sesión más reciente
-            .limit(10) // Limitar a los 10 más recientes
-            .select('name email lastLogin'); // Seleccionar campos relevantes
+        const recentLogins = await prisma.usuarios.findMany({
+            where: { lastLogin: { not: null } }, // Solo usuarios con un inicio de sesión registrado
+            orderBy: { lastLogin: "desc" }, // Ordenar por inicio de sesión más reciente
+            take: 10, // Limitar a los 10 más recientes
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                lastLogin: true,
+            },
+        });
 
         res.status(200).json(recentLogins);
     } catch (error) {
@@ -491,30 +665,235 @@ export const blockUserTemporarily = async (req, res) => {
     try {
         const { email, lockDuration } = req.body;
 
-        // Verifica que se envíen el correo y la duración
-        if (!email || !lockDuration) {
-            return res.status(400).json({ message: "Correo y duración de bloqueo son requeridos." });
+        // Verificar que se envíen el correo y la duración
+        if (!email || !lockDuration || isNaN(lockDuration) || lockDuration <= 0) {
+            return res.status(400).json({ message: "Correo y duración válida de bloqueo son requeridos." });
         }
 
         // Buscar al usuario por correo
-        const user = await User.findOne({ email });
+        const user = await prisma.usuarios.findUnique({
+            where: { email },
+        });
+
         if (!user) {
             return res.status(404).json({ message: "Usuario no encontrado." });
         }
 
         // Convertir duración en minutos a milisegundos y calcular el tiempo de desbloqueo
         const lockTimeInMs = lockDuration * 60 * 1000;
-        user.lockedUntil = new Date(Date.now() + lockTimeInMs);
-        user.blocked = false; // Asegúrate de que no sea un bloqueo permanente
-        user.lockCount += 1; // Incrementar el contador de bloqueos progresivos
-        await user.save();
+        const lockedUntilDate = new Date(Date.now() + lockTimeInMs);
+
+        // Actualizar el usuario en la base de datos
+        const updatedUser = await prisma.usuarios.update({
+            where: { email },
+            data: {
+                lockedUntil: lockedUntilDate,
+                blocked: false, // Asegurar que no sea un bloqueo permanente
+                lockCount: user.lockCount + 1, // Incrementar contador de bloqueos
+            },
+        });
 
         res.status(200).json({
             message: `Usuario bloqueado temporalmente por ${lockDuration} minuto(s).`,
-            lockedUntil: user.lockedUntil,
+            lockedUntil: updatedUser.lockedUntil,
         });
     } catch (error) {
         console.error("Error al bloquear al usuario temporalmente:", error);
         res.status(500).json({ message: "Error interno del servidor." });
     }
 };
+
+
+export const getProfile = async (req, res) => {
+    try {
+        const userId = Number(req.userId); // <-- ya existe
+        const user = await prisma.usuarios.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                name: true,
+                lastname: true,
+                email: true,
+                telefono: true,
+                fechadenacimiento: true,
+                user: true,
+                preguntaSecreta: true,
+                respuestaSecreta: true,
+                verified: true,
+                role: true,
+                failedLoginAttempts: true,
+                lockedUntil: true,
+                blocked: true,
+                lockCount: true,
+                lastLogin: true,
+                createdAt: true,
+                updatedAt: true,
+                // password: false // no se puede excluir así, hay que no listarlo
+            },
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        return res.status(200).json(user);
+    } catch (error) {
+        console.error("Error obteniendo perfil:", error);
+        return res.status(500).json({ message: "Error interno del servidor." });
+    }
+};
+
+export const verifySecretQuestion = async (req, res) => {
+    try {
+        const { email, respuestaSecreta, telefono } = req.body;
+  
+        // Validación básica
+        if (!email || !respuestaSecreta || !telefono) {
+            return res.status(400).json({ 
+                success: false,
+                message: "Email, respuesta secreta y teléfono son requeridos" 
+            });
+        }
+  
+        // Buscar al usuario con los intentos y bloqueos
+        const user = await prisma.usuarios.findUnique({
+            where: { email },
+            select: {
+                id: true,
+                respuestaSecreta: true,
+                telefono: true,
+                failedLoginAttempts: true,
+                blocked: true,
+                lockedUntil: true,
+                lockCount: true
+            }
+        });
+  
+        // No revelar si el usuario existe o no
+        if (!user) {
+            return res.status(400).json({ 
+                success: false,
+                message: "Datos incorrectos" 
+            });
+        }
+  
+        // Verificar bloqueos
+        if (user.blocked) {
+            return res.status(403).json({ 
+                success: false,
+                message: "Cuenta bloqueada permanentemente. Contacte al administrador." 
+            });
+        }
+  
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+            const remainingTime = Math.ceil((user.lockedUntil - new Date()) / 1000 / 60);
+            return res.status(403).json({ 
+                success: false,
+                message: `Cuenta bloqueada temporalmente. Intente nuevamente en ${remainingTime} minutos.` 
+            });
+        }
+  
+        // Verificar los datos
+        const isAnswerCorrect = user.respuestaSecreta.trim().toLowerCase() === 
+                              respuestaSecreta.trim().toLowerCase();
+        const isPhoneCorrect = user.telefono.trim() === telefono.trim();
+  
+        if (isAnswerCorrect && isPhoneCorrect) {
+            // Resetear intentos fallidos
+            if (user.failedLoginAttempts > 0) {
+                await prisma.usuarios.update({
+                    where: { id: user.id },
+                    data: { failedLoginAttempts: 0 }
+                });
+            }
+  
+            // Generar token para cambio de contraseña (válido por 15 minutos)
+            const resetToken = jwt.sign(
+                { 
+                    userId: user.id, 
+                    purpose: 'password_reset_secret_question',
+                    email: email
+                }, 
+                SECRET, 
+                { expiresIn: '15m' }
+            );
+  
+            return res.status(200).json({ 
+                success: true,
+                message: "Verificación exitosa",
+                token: resetToken // Enviamos el token en la respuesta
+            });
+        }
+  
+        // Manejo de intentos fallidos
+        const newAttempts = user.failedLoginAttempts + 1;
+        const remainingAttempts = 3 - newAttempts;
+  
+        if (newAttempts >= 3) {
+            const shouldBlockPermanently = user.lockCount >= 3;
+            
+            await prisma.usuarios.update({
+                where: { id: user.id },
+                data: shouldBlockPermanently ? {
+                    blocked: true,
+                    failedLoginAttempts: newAttempts
+                } : {
+                    failedLoginAttempts: newAttempts,
+                    lockedUntil: new Date(Date.now() + 30 * 60 * 1000),
+                    lockCount: { increment: 1 }
+                }
+            });
+  
+            return res.status(403).json({
+                success: false,
+                message: shouldBlockPermanently 
+                    ? "Cuenta bloqueada permanentemente por seguridad."
+                    : "Demasiados intentos fallidos. Cuenta bloqueada por 30 minutos."
+            });
+        }
+  
+        // Actualizar intentos fallidos
+        await prisma.usuarios.update({
+            where: { id: user.id },
+            data: { failedLoginAttempts: newAttempts }
+        });
+  
+        return res.status(400).json({
+            success: false,
+            message: `Datos incorrectos. Le quedan ${remainingAttempts} intentos.`
+        });
+  
+    } catch (error) {
+        console.error("Error en verifySecretQuestion:", error);
+        return res.status(500).json({ 
+            success: false,
+            message: "Error interno del servidor" 
+        });
+    }
+  };
+  // Eliminar usuario (solo admin)
+export const deleteUser = async (req, res) => {
+    try {
+      const userId = Number(req.params.id);
+      
+      // Verificar que el usuario existe
+      const userToDelete = await prisma.usuarios.findUnique({
+        where: { id: userId }
+      });
+  
+      if (!userToDelete) {
+        return res.status(404).json({ message: "Usuario no encontrado." });
+      }
+  
+      // Eliminar el usuario
+      await prisma.usuarios.delete({
+        where: { id: userId }
+      });
+  
+      return res.status(200).json({ message: "Usuario eliminado correctamente." });
+  
+    } catch (error) {
+      console.error("Error eliminando usuario:", error);
+      return res.status(500).json({ message: "Error interno del servidor." });
+    }
+  };

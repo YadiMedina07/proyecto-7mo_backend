@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model Usuarios {
+  id                  Int       @id @default(autoincrement())
+  name                String
+  lastname            String
+  email               String    @unique
+  telefono            String
+  fechadenacimiento   DateTime
+  user                String
+  preguntaSecreta     String
+  respuestaSecreta    String
+  password            String
+  verified            Boolean   @default(false)
+  role                String    @default("NORMAL")
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  blocked             Boolean   @default(false)
+  lockCount           Int       @default(0)
+  lastLogin           DateTime?
+  
+  loginHistory        LoginHistory[]
+  pedidos             Pedidos[]
+  carrito             Carrito[]
+  reviews             Reviews[]
+  sales               Sales[]
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model LoginHistory {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  loginAt   DateTime @default(now())
+
+  usuario   Usuarios @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model Productos {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100) 
+  description String   @db.VarChar(500)
+  precio      Float
+  sabor       String
+  tamano      Int
+  stock       Int
+  reviews     Reviews[]
+  detallePedido Detalle_Pedido[]
+  carrito     Carrito[]
+  imagenes    ImagenesProductos[]
+  sales       Sales[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model ImagenesProductos {
+  id          Int       @id @default(autoincrement())
+  imageUrl    String
+  productoId  Int
+
+  producto    Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
+}
+
+model Reviews {
+  id          Int       @id @default(autoincrement())
+  productoId  Int
+  usuarioId   Int
+  comment     String    @db.VarChar(200)
+  rating      Int       @default(1)
+  createdAt   DateTime  @default(now())
+
+  producto    Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  usuario     Usuarios  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model Pedidos {
+  id            Int      @id @default(autoincrement())
+  usuarioId     Int
+  fecha_pedido  DateTime
+  estado        String   
+  total         Float
+  detallePedido Detalle_Pedido[]
+  pagos         Pagos[]
+  envios        Envíos[]
+
+  usuario       Usuarios @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model Detalle_Pedido {
+  id             Int      @id @default(autoincrement())
+  pedidoId       Int
+  productoId     Int
+  tamanoId       Int
+  cantidad       Int
+  precio_unitario Float
+
+  pedido         Pedidos   @relation(fields: [pedidoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  producto       Productos @relation(fields: [productoId], references: [id], onDelete: NoAction, onUpdate: NoAction) 
+  }
+
+model Pagos {
+  id           Int      @id @default(autoincrement())
+  pedidoId     Int
+  metodo_pago  String   
+  estado_pago  String   
+  fecha_pago   DateTime
+  monto        Float
+
+  pedido       Pedidos  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+}
+
+model Envíos {
+  id                   Int      @id @default(autoincrement())
+  pedidoId             Int
+  empresa_mensajeria   String
+  codigo_seguimiento   String
+  fecha_envío          DateTime
+  fecha_estimada_entrega DateTime
+
+  pedido               Pedidos  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+}
+
+model Carrito {
+  id         Int      @id @default(autoincrement())
+  usuarioId  Int
+  productoId Int
+  cantidad   Int
+  usuario    Usuarios  @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  producto   Productos @relation(fields: [productoId], references: [id], onDelete: NoAction, onUpdate: NoAction) 
+}
+model Sales {
+  id             Int       @id @default(autoincrement())
+  productoId     Int
+  usuarioId      Int?      // opcional: si quieres rastrear quién compró
+  fechaVenta     DateTime  @default(now())
+  cantidad       Int       @default(1)
+  precioUnitario Float     // el precio del producto en el momento de la venta
+  total          Float     // cantidad * precioUnitario
+
+  producto       Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  usuario        Usuarios? @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([productoId])
+  @@index([usuarioId])
+  @@index([fechaVenta])
+}
+
+model Logos {
+  id          Int      @id @default(autoincrement())
+  url         String  
+  fechaSubida DateTime @default(now())  
+  autor       String   
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Terminos {
+  id            Int      @id @default(autoincrement())
+  title         String   
+  content       String   
+  createdAt     DateTime @default(now())   
+  effectiveDate DateTime 
+  isCurrent     Boolean  @default(false)   
+  updatedAt     DateTime @updatedAt
+}
+
+model Politicas {
+  id            Int      @id @default(autoincrement())
+  title         String   
+  content       String   
+  createdAt     DateTime @default(now())   
+  effectiveDate DateTime 
+  isCurrent     Boolean  @default(false)   
+  updatedAt     DateTime @updatedAt
+}
+
+model Deslindes {
+  id            Int      @id @default(autoincrement())
+  title         String   
+  content       String   
+  createdAt     DateTime @default(now())   
+  effectiveDate DateTime 
+  isCurrent     Boolean  @default(false)   
+  updatedAt     DateTime @updatedAt
+}
