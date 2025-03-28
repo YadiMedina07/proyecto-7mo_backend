@@ -37,21 +37,31 @@ app.use(
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", "https://apis.google.com"],
+                scriptSrc: [
+                    "'self'",
+                    "'unsafe-inline'",
+                    "https://apis.google.com",
+                    "https://vercel.live" // Permite el script de vercel.live
+                ],
                 styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
                 imgSrc: ["'self'", "data:", "https://images.unsplash.com"],
-                connectSrc: ["'self'", "https://api.tuservidor.com"],
-                frameSrc: ["'none'"], //  Bloquea iframes externos (Anti-Clickjacking)
+                connectSrc: [
+                    "'self'",
+                    "https://api.tuservidor.com",
+                    "https://proyecto-7mo-backend-pkho.vercel.app" // Permite conexiones a tu backend
+                ],
+                frameSrc: ["'none'"],
             },
         },
-        frameguard: { action: "deny" }, // Bloquea iframes maliciosos (Anti-Clickjacking)
-        xssFilter: true, //  Protege contra XSS
-        noSniff: true, //  Evita que los navegadores infieran tipos de archivo incorrectamente
-        referrerPolicy: { policy: "no-referrer" }, //  Evita que se envíe la URL de referencia a otros sitios
-        crossOriginEmbedderPolicy: true, //  Bloquea recursos de origen cruzado peligrosos
-        crossOriginResourcePolicy: { policy: "same-origin" }, //  Solo permite recursos del mismo dominio
+        frameguard: { action: "deny" },
+        xssFilter: true,
+        noSniff: true,
+        referrerPolicy: { policy: "no-referrer" },
+        crossOriginEmbedderPolicy: true,
+        crossOriginResourcePolicy: { policy: "same-origin" },
     })
 );
+
 
 // Eliminamos la cabecera X-Powered-By para evitar divulgar información del servidor
 app.disable("x-powered-by");
