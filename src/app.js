@@ -32,9 +32,9 @@ const corsOptions = {
 
 const app = express();
 // Implementamos helmet con configuraciones avanzadas
+/*
 app.use(
     helmet({ 
-        /*
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
@@ -61,7 +61,7 @@ app.use(
         referrerPolicy: { policy: "no-referrer" },
         crossOriginEmbedderPolicy: true,
         crossOriginResourcePolicy: { policy: "same-origin" },
-        */
+        
     })
 );
 
@@ -74,7 +74,7 @@ app.use((req, res, next) => {
     delete req.headers["x-forwarded-for"];
     next();
 });
-
+*/
 // Normalización de timestamps en respuestas JSON para evitar divulgación de marcas de tiempo Unix
 app.use((req, res, next) => {
     res.json = ((originalJson) => {
