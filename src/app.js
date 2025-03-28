@@ -16,10 +16,10 @@ import Prediccion from './routes/Prediccion.routes.js';
 
 // Configuración de CORS para producción
 const listWhite = [
-    'http://localhost:3000',
+    //'http://localhost:3000',
     'https://proyecto-7mo-fronted.vercel.app',
-    'http://192.168.1.70:5000',
-    'http://192.168.1.82:5000',
+    //'http://192.168.1.70:5000',
+    //'http://192.168.1.82:5000',
 ];
 
 const corsOptions = {
