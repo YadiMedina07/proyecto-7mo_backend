@@ -24,4 +24,8 @@ router.get('/:id', ProductosController.obtenerProductoPorId);
 // Eliminar producto (sólo admin)
 router.delete('/:id', isAuthenticated, isAdmin, ProductosController.eliminarProducto);
 
+
+
 export default router;
+
+
