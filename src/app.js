@@ -33,7 +33,8 @@ const corsOptions = {
 const app = express();
 // Implementamos helmet con configuraciones avanzadas
 app.use(
-    helmet({
+    helmet({ 
+        /*
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
@@ -53,12 +54,14 @@ app.use(
                 frameSrc: ["'none'"],
             },
         },
+
         frameguard: { action: "deny" },
         xssFilter: true,
         noSniff: true,
         referrerPolicy: { policy: "no-referrer" },
         crossOriginEmbedderPolicy: true,
         crossOriginResourcePolicy: { policy: "same-origin" },
+        */
     })
 );
 
