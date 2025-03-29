@@ -26,88 +26,11 @@ const corsOptions = {
     origin: listWhite,  // Permitir orígenes definidos
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,  // Importante para enviar cookies
-    allowedHeaders: ['Content-Type', 'Authorization','x-access-token','x-access-notification'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 
 const app = express();
-// --- Seguridad: Evitar divulgación de información interna ---
-app.disable('x-powered-by');
-
-// Anti-Clickjacking: impide que la app se cargue en iframes de otros dominios
-app.use(helmet.frameguard({ action: 'deny' }));
-
-
-
-
-app.use(
-  helmet.contentSecurityPolicy({
-    directives: {
-      defaultSrc: ["'self'"],
-
-      scriptSrc: [
-        "'self'",
-        "'nonce-randomString'", // Usa un nonce dinámico en cada respuesta
-        "https://www.google.com",
-        "https://www.gstatic.com",
-        "https://www.recaptcha.net"
-      ],
-
-      styleSrc: [
-        "'self'",
-        "https://fonts.googleapis.com"
-      ],
-
-      imgSrc: [
-        "'self'",
-        "data:",
-        "https://res.cloudinary.com"
-      ],
-
-      connectSrc: [
-        "'self'",
-        "http://localhost:4000",
-        "http://localhost:3000",
-        "https://api.pwnedpasswords.com",
-        "https://www.google.com",
-        "https://www.gstatic.com",
-        "https://proyecto-7mo-fronted.vercel.app",
-        "proyecto-7mo-backend-pkho.vercel.app"
-        
-
-      ],
-
-      fontSrc: [
-        "'self'",
-        "https://fonts.gstatic.com"
-      ],
-
-      objectSrc: ["'none'"],
-
-      frameSrc: [
-        "'self'",
-        "https://www.google.com",
-        "https://www.gstatic.com"
-      ]
-    },
-  })
-);
-
-
-
-// Agrega el header X-Content-Type-Options para evitar sniffing
-app.use(helmet.noSniff());
-
-// --- Control de Caché: evitar almacenamiento de información sensible ---
-app.use((req, res, next) => {
-  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-  next();
-});
-
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://proyecto-7mo-fronted.vercel.app'
-];
 
 // Implementamos helmet con configuraciones avanzadas
 /*
@@ -166,19 +89,9 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true
-  }));
-  
-//app.use(cors(corsOptions));
-//app.options('*', cors(corsOptions));
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
