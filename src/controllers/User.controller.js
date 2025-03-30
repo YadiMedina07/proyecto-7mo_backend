@@ -44,8 +44,8 @@ export const signUp = async (req, res) => {
         const token = jwt.sign({ email }, SECRET, { expiresIn: '1h' });
 
         // Enlace de verificación
-        //const verificationUrl = `https://proyecto-7mo-fronted.vercel.app/verify/${token}`;
-        const verificationUrl = `http://localhost:3000/verify/${token}`;
+        const verificationUrl = `https://proyecto-7mo-fronted.vercel.app/verify/${token}`;
+        //const verificationUrl = `http://localhost:3000/verify/${token}`;
 
         // Enviar correo de verificación
         await transporter.sendMail({
