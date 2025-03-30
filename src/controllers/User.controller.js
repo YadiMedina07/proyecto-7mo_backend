@@ -507,8 +507,8 @@ export const sendPasswordResetLink = async (req, res) => {
         });
 
         // Crear el enlace de restablecimiento de contraseña
-        //const resetUrl = `https://proyecto-7mo-fronted.vercel.app/restorepassword/${token}`;
-        const resetUrl =`http://localhost:3000/restorepassword/${token}`;
+        const resetUrl = `https://proyecto-7mo-fronted.vercel.app/restorepassword/${token}`;
+        //const resetUrl =`http://localhost:3000/restorepassword/${token}`;
 
 
         // Enviar el correo con el enlace de restablecimiento de contraseña
