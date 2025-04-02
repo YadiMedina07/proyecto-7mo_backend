@@ -45,7 +45,7 @@ export const signUp = async (req, res) => {
 
         // Enlace de verificación
         const verificationUrl = `https://proyecto-7mo-fronted.vercel.app/verify/${token}`;
-        //const verificationUrl = `http://localhost:3000/verify/${token}`;
+
 
         // Enviar correo de verificación
         await transporter.sendMail({
