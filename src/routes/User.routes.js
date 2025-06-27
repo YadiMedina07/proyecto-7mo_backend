@@ -16,7 +16,7 @@ router.get('/profile', isAuthenticated, userController.getProfile); // Perfil de
 router.get('/check-session', isAuthenticated, userController.checkSession); // Verificar la sesión
 router.post('/logout', isAuthenticated, userController.logout); // Cerrar sesión
 router.post('/verify-secret-question', userController.verifySecretQuestion);
-
+router.put('/update-profile', isAuthenticated, userController.updateProfile); // Actualizar perfil (NUEVA RUTA)
 
 // Ruta protegida para obtener todos los usuarios (solo admin)
 router.get('/users', isAuthenticated, isAdmin, userController.getAllUsers);
@@ -38,6 +38,7 @@ router.post('/admin/unblock-user', isAuthenticated, isAdmin, userController.unbl
 router.get('/admin/recent-logins', isAuthenticated, isAdmin, userController.getRecentLogins);
 
 router.delete('/admin/users/:id', isAuthenticated, isAdmin, userController.deleteUser);
+router.put('/admin/users/:id', isAuthenticated, isAdmin, userController.adminUpdateUser);
 
 export default router;
 

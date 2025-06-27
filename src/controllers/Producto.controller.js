@@ -199,79 +199,89 @@ export const obtenerProductosAdmin = async (req, res) => {
   }
 };
 
-
-export const agregarProductoCarrito = async (req, res) => {
+//crear promocion
+export const crearPromocion = async (req, res) => {
   try {
-    // Verifica que el usuario esté autenticado
-    if (!req.userId) {
-      return res.status(401).json({ message: "Usuario no autenticado" });
-    }
-    const usuarioId = req.userId;
-    const { productId, cantidad } = req.body;
-    const qty = cantidad ? Number(cantidad) : 1;
+    const { 
+      titulo,
+      descripcion,
+      fechaInicio, 
+      fechaFin, 
+      descuento,
+      productoId,
+      activo       // ← nuevo campo
+    } = req.body;
 
-    // Verificar que el producto exista
+    // 1) Validar que el producto exista
     const producto = await prisma.Productos.findUnique({
-      where: { id: Number(productId) },
+      where: { id: Number(productoId) }
     });
     if (!producto) {
-      return res.status(404).json({ message: "Producto no encontrado" });
+      return res.status(404).json({ message: 'Producto no encontrado.' });
     }
 
-    // Revisar si el producto ya está en el carrito del usuario
-    const carritoExistente = await prisma.Carrito.findFirst({
-      where: {
-        usuarioId,
-        productoId: Number(productId),
+    //  Crear el producto
+    const newPromocion = await prisma.Promocion.create({
+      data: {
+        titulo,
+        descripcion: descripcion || "",
+        fechaInicio: new Date(fechaInicio),
+        fechaFin: fechaFin ? new Date(fechaFin) : null,
+        descuento: Number(descuento) || 0,
+        activo: activo ?? true,
+        producto: { connect: { id: Number(productoId) } }
       },
+
     });
 
-    let carritoItem;
-    if (carritoExistente) {
-      // Incrementar la cantidad existente
-      carritoItem = await prisma.Carrito.update({
-        where: { id: carritoExistente.id },
-        data: { cantidad: carritoExistente.cantidad + qty },
-      });
-    } else {
-      // Crear una nueva entrada en el carrito
-      carritoItem = await prisma.Carrito.create({
-        data: {
-          usuarioId,
-          productoId: Number(productId),
-          cantidad: qty,
-        },
-      });
-    }
-
-    return res.status(200).json({ message: "Producto agregado al carrito", carritoItem });
+    return res.status(201).json({
+      message: "Promocion creado exitosamente",
+      promocion: newPromocion,
+    });
   } catch (error) {
-    console.error("Error al agregar producto al carrito:", error);
+    console.error("Error al crear lapromocion:", error);
     return res.status(500).json({ message: "Error interno del servidor" });
   }
 };
 
-export const obtenerCarrito = async (req, res) => {
+export const obtenerProductosConYSinDescuento = async (req, res) => {
   try {
-    // Se asume que el middleware asigna el id del usuario autenticado en req.userId
-    const usuarioId = req.userId;
-
-    // Obtener todos los items del carrito del usuario, incluyendo detalles del producto e imágenes
-    const carritoItems = await prisma.Carrito.findMany({
-      where: { usuarioId },
-      include: {
-        producto: {
-          include: {
-            imagenes: true,
-          },
-        },
+    // Obtener productos con promoción activa
+    const productosConDescuento = await prisma.Productos.findMany({
+      where: {
+        promociones: {
+          some: { activo: true, fechaInicio: { lte: new Date() }, OR: [{ fechaFin: null }, { fechaFin: { gte: new Date() } }] }
+        }
       },
+      include: {
+        promociones: {
+          where: {
+            activo: true,
+            fechaInicio: { lte: new Date() },
+            OR: [{ fechaFin: null }, { fechaFin: { gte: new Date() } }]
+          },
+          take: 1, // Solo la primera promoción activa
+        }
+      }
     });
 
-    return res.status(200).json({ carrito: carritoItems });
+    // Obtener productos sin promoción activa
+    const productosSinDescuento = await prisma.Productos.findMany({
+      where: {
+        promociones: {
+          none: { activo: true, fechaInicio: { lte: new Date() }, OR: [{ fechaFin: null }, { fechaFin: { gte: new Date() } }] }
+        }
+      }
+    });
+
+    res.status(200).json({
+      productosConDescuento,
+      productosSinDescuento
+    });
+
   } catch (error) {
-    console.error("Error al obtener el carrito:", error);
-    return res.status(500).json({ message: "Error interno del servidor" });
+    console.error("Error al obtener productos:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
   }
 };
 

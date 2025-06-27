@@ -1,7 +1,0 @@
-2025-04-02 00:08:07 [INFO] HTTP Request Success | {"method":"GET","url":"/api/auth/check-session","status":304,"duration":"20ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64"}
-2025-04-02 00:08:07 [INFO] HTTP Request Success | {"method":"GET","url":"/api/auth/check-session","status":304,"duration":"4ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64"}
-2025-04-02 00:08:08 [INFO] HTTP Request Success | {"method":"GET","url":"/api/logo/ultimo","status":200,"duration":"1658ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64"}
-2025-04-02 00:08:08 [INFO] HTTP Request Success | {"method":"GET","url":"/api/logo/ultimo","status":304,"duration":"139ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64"}
-2025-04-02 00:08:09 [INFO] HTTP Request Success | {"method":"GET","url":"/api/productos/","status":200,"duration":"2106ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64"}
-2025-04-02 00:08:09 [INFO] HTTP Request Success | {"method":"GET","url":"/api/productos/","status":304,"duration":"393ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64"}
-2025-04-02 00:08:22 [INFO] HTTP Request Success | {"method":"POST","url":"/api/auth/logout","status":200,"duration":"14ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64"}

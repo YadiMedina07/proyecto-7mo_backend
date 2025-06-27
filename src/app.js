@@ -3,7 +3,6 @@ import morgan from 'morgan';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import logger from './utils/logger.js'; // Importamos el logger personalizado
 
 // Importación de las rutas
 import user from './routes/User.routes.js';
@@ -13,6 +12,8 @@ import deslinde from './routes/Deslinde.routes.js';
 import logo from './routes/Logo.routes.js';
 import Producto from './routes/Producto.routes.js';
 import Prediccion from './routes/Prediccion.routes.js';
+import Carrito from './routes/Carrito.routes.js';
+import Pedido from './routes/Pedido.routes.js';
 
 
 
@@ -20,7 +21,9 @@ import Prediccion from './routes/Prediccion.routes.js';
 const allowedOrigins = [
     'http://localhost:3000',
     'https://corazonhuateco.netlify.app',
-    'https://proyecto-7mo-fronted.vercel.app'
+    'https://proyecto-7mo-fronted.vercel.app',
+    'http://10.0.2.16'
+
 ];
 
 // Crea la instancia de Express
@@ -87,9 +90,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// Logger middleware (importado desde utils/logger.js)
-app.use(logger);
-
 // Rutas
 app.use('/api/auth', user);
 app.use('/api/docs', politicas);
@@ -98,7 +98,8 @@ app.use('/api/docs', deslinde);
 app.use('/api/logo', logo);
 app.use('/api/productos', Producto);
 app.use('/api/prediccion', Prediccion);
-
+app.use('/api/carrito', Carrito);
+app.use('/api/pedidos', Pedido);
 // Ruta de prueba
 app.get('/', (req, res) => {
   res.json({ 

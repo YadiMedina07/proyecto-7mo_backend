@@ -1,0 +1,145 @@
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
+
+export const crearPedido = async (req, res) => {
+    try {
+    const usuarioId = req.userId;
+
+    // 1. Traer todos los items del carrito del usuario
+    const carritoItems = await prisma.Carrito.findMany({
+      where: { usuarioId },
+      include: { producto: true }
+    });
+    if (carritoItems.length === 0) {
+      return res.status(400).json({ message: "Tu carrito está vacío" });
+    }
+
+    // 2. Calcular totl y preparar data de detalle
+    let total = 0;
+    const detalleData = carritoItems.map(item => {
+      total += item.cantidad * item.producto.precio;
+      return {
+        productoId: item.productoId,
+        cantidad: item.cantidad,
+        precio_unitario: item.producto.precio
+      };
+    });
+
+    // 3. Crear Pedido + Detalle_Pedido + vaciar carrito en una transacción
+    const nuevoPedido = await prisma.$transaction(async (tx) => {
+      // 3.1 crear registro en Pedidos
+      const pedido = await tx.Pedidos.create({
+        data: {
+          usuarioId,
+          fecha_pedido: new Date(),
+          estado: "EN ESPERA",
+          total
+        }
+      });
+
+      // 3.2 crear múltiples registros en Detalle_Pedido
+      const detalleConPedido = detalleData.map(d => ({
+        ...d,
+        pedidoId: pedido.id
+      }));
+      await tx.Detalle_Pedido.createMany({
+        data: detalleConPedido
+      });
+
+      // 3.3 limpiar carrito del usuario
+      await tx.Carrito.deleteMany({
+        where: { usuarioId }
+      });
+
+      return pedido;
+    });
+
+    return res.status(201).json({ pedido: nuevoPedido });
+  } catch (error) {
+    console.error("Error creando pedido:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+
+};
+
+
+// 1.1 Obtener todos los pedidos (solo admin)
+export const obtenerPedidosAdmin = async (req, res) => {
+  try {
+    const pedidos = await prisma.Pedidos.findMany({
+      include: {
+        usuario: { select: { id: true, name: true, email: true } },
+        detallePedido: {
+          include: { producto: true }
+        }
+      },
+      orderBy: { fecha_pedido: "desc" }
+    });
+    return res.json({ pedidos });
+  } catch (error) {
+    console.error("Error obteniendo pedidos:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
+// 1.3 Obtener pedidos de un usuario por email
+export const 
+obtenerPedidosPorEmail = async (req, res) => {
+  try {
+    const { email } = req.params; // o req.query.email, según tu ruta
+
+    // 1. Buscar usuario por email
+    const usuario = await prisma.Usuarios.findUnique({
+      where: { email }
+    });
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // 2. Traer sus pedidos con detalles y producto
+    const pedidos = await prisma.Pedidos.findMany({
+      where: { usuarioId: usuario.id },
+      include: {
+        detallePedido: {
+          include: { producto: true }
+        },
+        // opcional: si quieres repetir datos básicos del usuario en cada pedido
+        usuario: { select: { id: true, name: true, email: true } }
+      },
+      orderBy: { fecha_pedido: "desc" }
+    });
+
+    return res.json({ pedidos });
+  } catch (error) {
+    console.error("Error obteniendo pedidos por email:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
+
+
+// 1.2 Actualizar estado de un pedido
+export const actualizarEstadoPedido = async (req, res) => {
+  try {
+    const pedidoId = Number(req.params.id);
+    const { estado } = req.body;
+    // validación mínima
+    const estadosPermitidos = ["RECIBIDO","EN_PREPARACION","LISTO_ENTREGA","EN_CAMINO","ENTREGADO"];
+    if (!estadosPermitidos.includes(estado)) {
+      return res.status(400).json({ message: "Estado no válido" });
+    }
+
+    const pedido = await prisma.Pedidos.update({
+      where: { id: pedidoId },
+      data: { estado },
+      include: {
+        usuario: { select: { id: true, name: true, email: true } },
+        detallePedido: { include: { producto: true } }
+      }
+    });
+    return res.json({ pedido });
+  } catch (error) {
+    console.error("Error actualizando estado:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+};

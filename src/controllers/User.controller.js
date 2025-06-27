@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { transporter } from '../libs/emailConfing.js';
 
-// 🔒 Mejores prácticas de seguridad en Node.js 
+// 🔒 Mejores prácticas de seguridad en Node.js D
 // Variables de entorno para SECRET (Evitar claves por defecto en producción)
 const prisma = new PrismaClient();
 const SECRET = process.env.SECRET || 'super-secret-key'; // ⚠ No almacenar secretos en código fuente
@@ -45,6 +45,7 @@ export const signUp = async (req, res) => {
 
         // Enlace de verificación
         const verificationUrl = `https://proyecto-7mo-fronted.vercel.app/verify/${token}`;
+        //const verificationUrl =`http://localhost:3000/verify/${token}`;
 
 
         // Enviar correo de verificación
@@ -253,7 +254,7 @@ export const login = async (req, res) => {
         });
     } catch (error) {
         console.error("Error en login:", error);
-        return res.status(500).json({ message: "Error interno del servidor",error });
+        return res.status(500).json({ message: "Error interno del servidor", error });
     }
 };
 
@@ -348,62 +349,62 @@ export const getAllUsers = async (req, res) => {
 export const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
-  
+
     try {
-      // Verificar el token
-      const decoded = jwt.verify(token, SECRET);
-  
-      // Buscar al usuario en la base de datos
-      const user = await prisma.usuarios.findUnique({
-        where: { id: decoded.userId }
-      });
-  
-      if (!user) {
-        return res.status(404).json({ message: "Usuario no encontrado" });
-      }
-  
-      // Validar la contraseña según los requisitos:
-      if (password.length < 8 || password.length > 30) {
-        return res.status(400).json({ message: "La contraseña debe tener entre 8 y 30 caracteres." });
-      }
-      if (!/[A-Za-z]/.test(password)) {
-        return res.status(400).json({ message: "La contraseña debe contener al menos una letra." });
-      }
-      if (!/\d/.test(password)) {
-        return res.status(400).json({ message: "La contraseña debe contener al menos un número." });
-      }
-      if (!/[A-Z]/.test(password)) {
-        return res.status(400).json({ message: "La contraseña debe contener al menos una letra mayúscula." });
-      }
-      if (!/[^A-Za-z0-9]/.test(password)) {
-        return res.status(400).json({ message: "La contraseña debe contener al menos un carácter especial." });
-      }
-  
-      // Hashear la nueva contraseña
-      const hashedPassword = await bcrypt.hash(password, 10);
-  
-      // Actualizar la contraseña en la base de datos
-      await prisma.usuarios.update({
-        where: { id: user.id },
-        data: { password: hashedPassword }
-      });
-  
-      res.status(200).json({ message: "Contraseña actualizada exitosamente" });
-  
+        // Verificar el token
+        const decoded = jwt.verify(token, SECRET);
+
+        // Buscar al usuario en la base de datos
+        const user = await prisma.usuarios.findUnique({
+            where: { id: decoded.userId }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        // Validar la contraseña según los requisitos:
+        if (password.length < 8 || password.length > 30) {
+            return res.status(400).json({ message: "La contraseña debe tener entre 8 y 30 caracteres." });
+        }
+        if (!/[A-Za-z]/.test(password)) {
+            return res.status(400).json({ message: "La contraseña debe contener al menos una letra." });
+        }
+        if (!/\d/.test(password)) {
+            return res.status(400).json({ message: "La contraseña debe contener al menos un número." });
+        }
+        if (!/[A-Z]/.test(password)) {
+            return res.status(400).json({ message: "La contraseña debe contener al menos una letra mayúscula." });
+        }
+        if (!/[^A-Za-z0-9]/.test(password)) {
+            return res.status(400).json({ message: "La contraseña debe contener al menos un carácter especial." });
+        }
+
+        // Hashear la nueva contraseña
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Actualizar la contraseña en la base de datos
+        await prisma.usuarios.update({
+            where: { id: user.id },
+            data: { password: hashedPassword }
+        });
+
+        res.status(200).json({ message: "Contraseña actualizada exitosamente" });
+
     } catch (error) {
-      console.error("Error en resetPassword:", error);
-  
-      // Manejo específico de errores de JWT
-      if (error.name === "TokenExpiredError") {
-        return res.status(400).json({ message: "El token ha expirado" });
-      } else if (error.name === "JsonWebTokenError") {
-        return res.status(400).json({ message: "Token inválido" });
-      }
-  
-      res.status(500).json({ message: "Error interno del servidor" });
+        console.error("Error en resetPassword:", error);
+
+        // Manejo específico de errores de JWT
+        if (error.name === "TokenExpiredError") {
+            return res.status(400).json({ message: "El token ha expirado" });
+        } else if (error.name === "JsonWebTokenError") {
+            return res.status(400).json({ message: "Token inválido" });
+        }
+
+        res.status(500).json({ message: "Error interno del servidor" });
     }
-  };
-  
+};
+
 
 
 //informacion de usuarios
@@ -693,7 +694,7 @@ export const blockUserTemporarily = async (req, res) => {
             },
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             message: `Usuario bloqueado temporalmente por ${lockDuration} minuto(s).`,
             lockedUntil: updatedUser.lockedUntil,
         });
@@ -703,6 +704,34 @@ export const blockUserTemporarily = async (req, res) => {
     }
 };
 
+
+// Eliminar usuario (solo admin)
+export const deleteUser = async (req, res) => {
+    try {
+        const userId = Number(req.params.id);
+
+        // Verificar que el usuario existe
+        const userToDelete = await prisma.usuarios.findUnique({
+            where: { id: userId }
+        });
+
+        if (!userToDelete) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        // Eliminar el usuario
+        await prisma.usuarios.delete({
+            where: { id: userId }
+        });
+
+        return res.status(200).json({ message: "Usuario eliminado correctamente." });
+
+    } catch (error) {
+        console.error("Error eliminando usuario:", error);
+        return res.status(500).json({ message: "Error interno del servidor." });
+    }
+
+};
 
 export const getProfile = async (req, res) => {
     try {
@@ -743,18 +772,138 @@ export const getProfile = async (req, res) => {
     }
 };
 
+
+export const updateProfile = async (req, res) => {
+    try {
+        const userId = Number(req.userId);
+        const {
+            name,
+            lastname,
+            telefono,
+            fechadenacimiento
+        } = req.body;
+
+        // Validar que al menos un campo sea proporcionado
+        if (!name && !lastname && !telefono && !fechadenacimiento) {
+            return res.status(400).json({ message: "Debe proporcionar al menos un campo para actualizar." });
+        }
+
+        const updateData = {
+            ...(name && { name }),
+            ...(lastname && { lastname }),
+            ...(telefono && { telefono }),
+            ...(fechadenacimiento && { fechadenacimiento: new Date(fechadenacimiento) }),
+        };
+
+        const updatedUser = await prisma.usuarios.update({
+            where: { id: userId },
+            data: updateData,
+            select: {
+                id: true,
+                name: true,
+                lastname: true,
+                email: true,
+                telefono: true,
+                fechadenacimiento: true,
+                user: true,
+                verified: true,
+                role: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        });
+
+        return res.status(200).json(updatedUser);
+    } catch (error) {
+        console.error("Error actualizando perfil:", error);
+        return res.status(500).json({ message: "Error interno del servidor." });
+    }
+};
+
+// Actualizar usuario como admin (puede actualizar más campos)
+export const adminUpdateUser = async (req, res) => {
+    try {
+        const userId = Number(req.params.id);
+        const {
+            name,
+            lastname,
+            email,
+            telefono,
+            fechadenacimiento,
+            role,
+            blocked,
+            verified
+        } = req.body;
+
+        // Verificar que el usuario existe
+        const existingUser = await prisma.usuarios.findUnique({
+            where: { id: userId }
+        });
+
+        if (!existingUser) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        // Preparar datos para actualizar
+        const updateData = {
+            ...(name && { name }),
+            ...(lastname && { lastname }),
+            ...(email && { email }),
+            ...(telefono && { telefono }),
+            ...(fechadenacimiento && { fechadenacimiento: new Date(fechadenacimiento) }),
+            ...(role && { role }),
+            ...(typeof blocked !== 'undefined' && { blocked }),
+            ...(typeof verified !== 'undefined' && { verified }),
+        };
+
+        // Actualizar el usuario
+        const updatedUser = await prisma.usuarios.update({
+            where: { id: userId },
+            data: updateData,
+            select: {
+                id: true,
+                name: true,
+                lastname: true,
+                email: true,
+                telefono: true,
+                fechadenacimiento: true,
+                role: true,
+                verified: true,
+                blocked: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        });
+
+        return res.status(200).json(updatedUser);
+
+    } catch (error) {
+        console.error("Error actualizando usuario como admin:", error);
+
+        // Manejar error de email único
+        if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
+            return res.status(400).json({ message: "El email ya está en uso por otro usuario." });
+        }
+
+        return res.status(500).json({ message: "Error interno del servidor." });
+    }
+};
+
+
+
+
 export const verifySecretQuestion = async (req, res) => {
     try {
         const { email, respuestaSecreta, telefono } = req.body;
-  
+
         // Validación básica
         if (!email || !respuestaSecreta || !telefono) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: "Email, respuesta secreta y teléfono son requeridos" 
+                message: "Email, respuesta secreta y teléfono son requeridos"
             });
         }
-  
+
         // Buscar al usuario con los intentos y bloqueos
         const user = await prisma.usuarios.findUnique({
             where: { email },
@@ -768,36 +917,36 @@ export const verifySecretQuestion = async (req, res) => {
                 lockCount: true
             }
         });
-  
+
         // No revelar si el usuario existe o no
         if (!user) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: "Datos incorrectos" 
+                message: "Datos incorrectos"
             });
         }
-  
+
         // Verificar bloqueos
         if (user.blocked) {
-            return res.status(403).json({ 
+            return res.status(403).json({
                 success: false,
-                message: "Cuenta bloqueada permanentemente. Contacte al administrador." 
+                message: "Cuenta bloqueada permanentemente. Contacte al administrador."
             });
         }
-  
+
         if (user.lockedUntil && user.lockedUntil > new Date()) {
             const remainingTime = Math.ceil((user.lockedUntil - new Date()) / 1000 / 60);
-            return res.status(403).json({ 
+            return res.status(403).json({
                 success: false,
-                message: `Cuenta bloqueada temporalmente. Intente nuevamente en ${remainingTime} minutos.` 
+                message: `Cuenta bloqueada temporalmente. Intente nuevamente en ${remainingTime} minutos.`
             });
         }
-  
+
         // Verificar los datos
-        const isAnswerCorrect = user.respuestaSecreta.trim().toLowerCase() === 
-                              respuestaSecreta.trim().toLowerCase();
+        const isAnswerCorrect = user.respuestaSecreta.trim().toLowerCase() ===
+            respuestaSecreta.trim().toLowerCase();
         const isPhoneCorrect = user.telefono.trim() === telefono.trim();
-  
+
         if (isAnswerCorrect && isPhoneCorrect) {
             // Resetear intentos fallidos
             if (user.failedLoginAttempts > 0) {
@@ -806,32 +955,32 @@ export const verifySecretQuestion = async (req, res) => {
                     data: { failedLoginAttempts: 0 }
                 });
             }
-  
+
             // Generar token para cambio de contraseña (válido por 15 minutos)
             const resetToken = jwt.sign(
-                { 
-                    userId: user.id, 
+                {
+                    userId: user.id,
                     purpose: 'password_reset_secret_question',
                     email: email
-                }, 
-                SECRET, 
+                },
+                SECRET,
                 { expiresIn: '15m' }
             );
-  
-            return res.status(200).json({ 
+
+            return res.status(200).json({
                 success: true,
                 message: "Verificación exitosa",
                 token: resetToken // Enviamos el token en la respuesta
             });
         }
-  
+
         // Manejo de intentos fallidos
         const newAttempts = user.failedLoginAttempts + 1;
         const remainingAttempts = 3 - newAttempts;
-  
+
         if (newAttempts >= 3) {
             const shouldBlockPermanently = user.lockCount >= 3;
-            
+
             await prisma.usuarios.update({
                 where: { id: user.id },
                 data: shouldBlockPermanently ? {
@@ -843,57 +992,31 @@ export const verifySecretQuestion = async (req, res) => {
                     lockCount: { increment: 1 }
                 }
             });
-  
+
             return res.status(403).json({
                 success: false,
-                message: shouldBlockPermanently 
+                message: shouldBlockPermanently
                     ? "Cuenta bloqueada permanentemente por seguridad."
                     : "Demasiados intentos fallidos. Cuenta bloqueada por 30 minutos."
             });
         }
-  
+
         // Actualizar intentos fallidos
         await prisma.usuarios.update({
             where: { id: user.id },
             data: { failedLoginAttempts: newAttempts }
         });
-  
+
         return res.status(400).json({
             success: false,
             message: `Datos incorrectos. Le quedan ${remainingAttempts} intentos.`
         });
-  
+
     } catch (error) {
         console.error("Error en verifySecretQuestion:", error);
-        return res.status(500).json({ 
+        return res.status(500).json({
             success: false,
-            message: "Error interno del servidor" 
+            message: "Error interno del servidor"
         });
     }
-  };
-  // Eliminar usuario (solo admin)
-export const deleteUser = async (req, res) => {
-    try {
-      const userId = Number(req.params.id);
-      
-      // Verificar que el usuario existe
-      const userToDelete = await prisma.usuarios.findUnique({
-        where: { id: userId }
-      });
-  
-      if (!userToDelete) {
-        return res.status(404).json({ message: "Usuario no encontrado." });
-      }
-  
-      // Eliminar el usuario
-      await prisma.usuarios.delete({
-        where: { id: userId }
-      });
-  
-      return res.status(200).json({ message: "Usuario eliminado correctamente." });
-  
-    } catch (error) {
-      console.error("Error eliminando usuario:", error);
-      return res.status(500).json({ message: "Error interno del servidor." });
-    }
-  };
+};

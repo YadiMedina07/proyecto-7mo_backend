@@ -40,8 +40,10 @@ CREATE TABLE [dbo].[Productos] (
     [id] INT NOT NULL IDENTITY(1,1),
     [name] VARCHAR(100) NOT NULL,
     [description] VARCHAR(500) NOT NULL,
-    [saborId] INT,
-    [tamanoId] INT,
+    [precio] FLOAT(53) NOT NULL,
+    [sabor] NVARCHAR(1000) NOT NULL,
+    [tamano] INT NOT NULL,
+    [stock] INT NOT NULL,
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [Productos_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
     [updatedAt] DATETIME2 NOT NULL,
     CONSTRAINT [Productos_pkey] PRIMARY KEY CLUSTERED ([id])
@@ -64,24 +66,6 @@ CREATE TABLE [dbo].[Reviews] (
     [rating] INT NOT NULL CONSTRAINT [Reviews_rating_df] DEFAULT 1,
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [Reviews_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT [Reviews_pkey] PRIMARY KEY CLUSTERED ([id])
-);
-
--- CreateTable
-CREATE TABLE [dbo].[Sabores] (
-    [id] INT NOT NULL IDENTITY(1,1),
-    [nombre] NVARCHAR(1000) NOT NULL,
-    CONSTRAINT [Sabores_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [Sabores_nombre_key] UNIQUE NONCLUSTERED ([nombre])
-);
-
--- CreateTable
-CREATE TABLE [dbo].[Tamaños] (
-    [id] INT NOT NULL IDENTITY(1,1),
-    [nombre] NVARCHAR(1000) NOT NULL,
-    [mililitros] INT NOT NULL,
-    [precio] FLOAT(53) NOT NULL,
-    [stock] INT NOT NULL,
-    CONSTRAINT [Tamaños_pkey] PRIMARY KEY CLUSTERED ([id])
 );
 
 -- CreateTable
@@ -132,9 +116,32 @@ CREATE TABLE [dbo].[Carrito] (
     [id] INT NOT NULL IDENTITY(1,1),
     [usuarioId] INT NOT NULL,
     [productoId] INT NOT NULL,
-    [tamanoId] INT NOT NULL,
     [cantidad] INT NOT NULL,
     CONSTRAINT [Carrito_pkey] PRIMARY KEY CLUSTERED ([id])
+);
+
+-- CreateTable
+CREATE TABLE [dbo].[Sales] (
+    [id] INT NOT NULL IDENTITY(1,1),
+    [productoId] INT NOT NULL,
+    [usuarioId] INT,
+    [fechaVenta] DATETIME2 NOT NULL CONSTRAINT [Sales_fechaVenta_df] DEFAULT CURRENT_TIMESTAMP,
+    [cantidad] INT NOT NULL CONSTRAINT [Sales_cantidad_df] DEFAULT 1,
+    [precioUnitario] FLOAT(53) NOT NULL,
+    [total] FLOAT(53) NOT NULL,
+    CONSTRAINT [Sales_pkey] PRIMARY KEY CLUSTERED ([id])
+);
+
+-- CreateTable
+CREATE TABLE [dbo].[Promocion] (
+    [id] INT NOT NULL IDENTITY(1,1),
+    [titulo] NVARCHAR(1000) NOT NULL,
+    [descripcion] NVARCHAR(1000),
+    [fechaInicio] DATETIME2 NOT NULL,
+    [fechaFin] DATETIME2,
+    [activo] BIT NOT NULL CONSTRAINT [Promocion_activo_df] DEFAULT 1,
+    [productoId] INT NOT NULL,
+    CONSTRAINT [Promocion_pkey] PRIMARY KEY CLUSTERED ([id])
 );
 
 -- CreateTable
@@ -184,14 +191,53 @@ CREATE TABLE [dbo].[Deslindes] (
     CONSTRAINT [Deslindes_pkey] PRIMARY KEY CLUSTERED ([id])
 );
 
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [LoginHistory_usuarioId_fkey] ON [dbo].[LoginHistory]([usuarioId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [ImagenesProductos_productoId_fkey] ON [dbo].[ImagenesProductos]([productoId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Reviews_productoId_fkey] ON [dbo].[Reviews]([productoId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Reviews_usuarioId_fkey] ON [dbo].[Reviews]([usuarioId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Pedidos_usuarioId_fkey] ON [dbo].[Pedidos]([usuarioId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Detalle_Pedido_pedidoId_fkey] ON [dbo].[Detalle_Pedido]([pedidoId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Detalle_Pedido_productoId_fkey] ON [dbo].[Detalle_Pedido]([productoId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Pagos_pedidoId_fkey] ON [dbo].[Pagos]([pedidoId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Envíos_pedidoId_fkey] ON [dbo].[Envíos]([pedidoId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Carrito_productoId_fkey] ON [dbo].[Carrito]([productoId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Carrito_usuarioId_fkey] ON [dbo].[Carrito]([usuarioId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Sales_productoId_idx] ON [dbo].[Sales]([productoId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Sales_usuarioId_idx] ON [dbo].[Sales]([usuarioId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Sales_fechaVenta_idx] ON [dbo].[Sales]([fechaVenta]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Promocion_productoId_idx] ON [dbo].[Promocion]([productoId]);
+
 -- AddForeignKey
 ALTER TABLE [dbo].[LoginHistory] ADD CONSTRAINT [LoginHistory_usuarioId_fkey] FOREIGN KEY ([usuarioId]) REFERENCES [dbo].[Usuarios]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE [dbo].[Productos] ADD CONSTRAINT [Productos_saborId_fkey] FOREIGN KEY ([saborId]) REFERENCES [dbo].[Sabores]([id]) ON DELETE SET NULL ON UPDATE NO ACTION;
-
--- AddForeignKey
-ALTER TABLE [dbo].[Productos] ADD CONSTRAINT [Productos_tamanoId_fkey] FOREIGN KEY ([tamanoId]) REFERENCES [dbo].[Tamaños]([id]) ON DELETE SET NULL ON UPDATE NO ACTION;
 
 -- AddForeignKey
 ALTER TABLE [dbo].[ImagenesProductos] ADD CONSTRAINT [ImagenesProductos_productoId_fkey] FOREIGN KEY ([productoId]) REFERENCES [dbo].[Productos]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -218,13 +264,19 @@ ALTER TABLE [dbo].[Pagos] ADD CONSTRAINT [Pagos_pedidoId_fkey] FOREIGN KEY ([ped
 ALTER TABLE [dbo].[Envíos] ADD CONSTRAINT [Envíos_pedidoId_fkey] FOREIGN KEY ([pedidoId]) REFERENCES [dbo].[Pedidos]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE [dbo].[Carrito] ADD CONSTRAINT [Carrito_usuarioId_fkey] FOREIGN KEY ([usuarioId]) REFERENCES [dbo].[Usuarios]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
-
--- AddForeignKey
 ALTER TABLE [dbo].[Carrito] ADD CONSTRAINT [Carrito_productoId_fkey] FOREIGN KEY ([productoId]) REFERENCES [dbo].[Productos]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE [dbo].[Carrito] ADD CONSTRAINT [Carrito_tamanoId_fkey] FOREIGN KEY ([tamanoId]) REFERENCES [dbo].[Tamaños]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE [dbo].[Carrito] ADD CONSTRAINT [Carrito_usuarioId_fkey] FOREIGN KEY ([usuarioId]) REFERENCES [dbo].[Usuarios]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE [dbo].[Sales] ADD CONSTRAINT [Sales_productoId_fkey] FOREIGN KEY ([productoId]) REFERENCES [dbo].[Productos]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE [dbo].[Sales] ADD CONSTRAINT [Sales_usuarioId_fkey] FOREIGN KEY ([usuarioId]) REFERENCES [dbo].[Usuarios]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE [dbo].[Promocion] ADD CONSTRAINT [Promocion_productoId_fkey] FOREIGN KEY ([productoId]) REFERENCES [dbo].[Productos]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
 
 COMMIT TRAN;
 
