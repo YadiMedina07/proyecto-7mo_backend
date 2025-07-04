@@ -32,6 +32,7 @@ model Usuarios {
   pedidos             Pedidos[]
   reviews             Reviews[]
   sales               Sales[]
+  direcciones         Direccion[]  
 }
 
 model LoginHistory {
@@ -56,9 +57,9 @@ model Productos {
   carrito       Carrito[]
   detallePedido Detalle_Pedido[]
   imagenes      ImagenesProductos[]
+  promociones   Promociones[]
   reviews       Reviews[]
   sales         Sales[]
-  promocion     Promocion[]
 }
 
 model ImagenesProductos {
@@ -94,7 +95,9 @@ model Pedidos {
   envios        Envíos[]
   pagos         Pagos[]
   usuario       Usuarios         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-
+  direccionId   Int?  
+  direccion     Direccion?     @relation(fields: [direccionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
   @@index([usuarioId], map: "Pedidos_usuarioId_fkey")
 }
 
@@ -105,10 +108,25 @@ model Detalle_Pedido {
   cantidad        Int
   precio_unitario Float
   pedido          Pedidos   @relation(fields: [pedidoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  producto        Productos @relation(fields: [productoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  producto        Productos @relation(fields: [productoId], references: [id], onUpdate: NoAction)
 
   @@index([pedidoId], map: "Detalle_Pedido_pedidoId_fkey")
   @@index([productoId], map: "Detalle_Pedido_productoId_fkey")
+}
+model Direccion {
+  id                Int      @id @default(autoincrement())
+  usuarioId         Int
+  alias             String?  // p.ej. “Casa”, “Oficina”
+  calle             String
+  numeroExterior    String
+  numeroInterior    String?
+  colonia           String
+  ciudad            String
+  estado            String
+  codigoPostal      String
+  pais              String   @default("México")
+  usuario           Usuarios @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pedidos           Pedidos[]  // Relación inversa
 }
 
 model Pagos {
@@ -140,7 +158,7 @@ model Carrito {
   usuarioId  Int
   productoId Int
   cantidad   Int
-  producto   Productos @relation(fields: [productoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  producto   Productos @relation(fields: [productoId], references: [id], onUpdate: NoAction)
   usuario    Usuarios  @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([productoId], map: "Carrito_productoId_fkey")
@@ -162,16 +180,17 @@ model Sales {
   @@index([usuarioId])
   @@index([fechaVenta])
 }
-model Promocion {
-  id           Int        @id @default(autoincrement())
-  titulo       String
-  descripcion  String?
-  fechaInicio  DateTime
-  fechaFin     DateTime?
-  activo       Boolean    @default(true)
-  descuento    Int
-  productoId    Int
-  producto     Productos  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+model Promociones {
+  id          Int       @id @default(autoincrement())
+  titulo      String
+  descripcion String?
+  fechaInicio DateTime
+  fechaFin    DateTime?
+  activo      Boolean   @default(true)
+  descuento   Int
+  productoId  Int
+  producto    Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
 
   @@index([productoId])
 }

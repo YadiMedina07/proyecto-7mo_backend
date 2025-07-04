@@ -63,17 +63,27 @@ export const crearPedido = async (req, res) => {
 };
 
 
-// 1.1 Obtener todos los pedidos (solo admin)
+
+// 1.1 Obtener todos los pedidos (solo admin), opcionalmente filtrados por usuario
 export const obtenerPedidosAdmin = async (req, res) => {
   try {
+    // Leer el query param
+    const filtroUsuario = req.query.usuarioId
+      ? Number(req.query.usuarioId)
+      : undefined;
+
+    // Construir cláusula WHERE
+    const where = filtroUsuario
+      ? { usuarioId: filtroUsuario }
+      : {};
+
     const pedidos = await prisma.Pedidos.findMany({
+      where,
       include: {
         usuario: { select: { id: true, name: true, email: true } },
-        detallePedido: {
-          include: { producto: true }
-        }
+        detallePedido: { include: { producto: true } },
       },
-      orderBy: { fecha_pedido: "desc" }
+      orderBy: { fecha_pedido: "desc" },
     });
     return res.json({ pedidos });
   } catch (error) {
@@ -142,4 +152,79 @@ export const actualizarEstadoPedido = async (req, res) => {
     console.error("Error actualizando estado:", error);
     return res.status(500).json({ message: "Error interno del servidor" });
   }
+};
+
+
+// obtener pedidos por usuario
+export const obtenerPedidosUsuario = async (req, res) => {
+  const usuarioId = req.userId;
+  const pedidos = await prisma.Pedidos.findMany({
+    where: { usuarioId },
+    orderBy: { fecha_pedido: "desc" },
+  });
+  res.json({ pedidos });
+};
+
+// controllers/Pedido.controller.js
+export const confirmarRecibo = async (req, res) => {
+  const { id } = req.params;
+  const usuarioId = req.userId;
+
+  // 1) Validar existencia y pertenencia
+  const pedido = await prisma.Pedidos.findUnique({
+    where: { id: Number(id) }
+  });
+  if (!pedido || pedido.usuarioId !== usuarioId) {
+    return res.status(404).json({ message: "Pedido no encontrado" });
+  }
+
+  // 2) Actualizar estado
+  const actualizado = await prisma.Pedidos.update({
+    where: { id: Number(id) },
+    data: { estado: "RECIBIDO_CLIENTE" },
+  });
+
+  // 3) Devolver el pedido actualizado
+  return res.json({ pedido: actualizado });
+};
+
+
+// Obtiene sólo los pedidos que el usuario confirmó recibido
+export const obtenerHistorialUsuario = async (req, res) => {
+  const usuarioId = req.userId;
+  const pedidos = await prisma.Pedidos.findMany({
+    where: {
+      usuarioId,
+      estado: "RECIBIDO_CLIENTE",
+    },
+    orderBy: { fecha_pedido: "desc" },
+  });
+  res.json({ pedidos });
+};
+
+
+// controllers/Pedido.controller.js
+export const obtenerPedidoPorId = async (req, res) => {
+  const { id } = req.params;
+  const usuarioId = req.userId;
+
+  const pedido = await prisma.Pedidos.findUnique({
+    where: { id: Number(id) },
+    include: {
+      detallePedido: {
+        include: {
+          producto: {
+            include: {
+              imagenes: true     // <–– aquí incluimos imágenes
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!pedido || pedido.usuarioId !== usuarioId) {
+    return res.status(404).json({ message: "Pedido no encontrado" });
+  }
+  res.json({ pedido });
 };

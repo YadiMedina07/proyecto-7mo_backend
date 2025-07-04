@@ -44,8 +44,8 @@ export const signUp = async (req, res) => {
         const token = jwt.sign({ email }, SECRET, { expiresIn: '1h' });
 
         // Enlace de verificación
-        const verificationUrl = `https://proyecto-7mo-fronted.vercel.app/verify/${token}`;
-        //const verificationUrl =`http://localhost:3000/verify/${token}`;
+        //const verificationUrl = `https://proyecto-7mo-fronted.vercel.app/verify/${token}`;
+        const verificationUrl =`http://localhost:3000/verify/${token}`;
 
 
         // Enviar correo de verificación
@@ -352,7 +352,7 @@ export const resetPassword = async (req, res) => {
 
     try {
         // Verificar el token
-        const decoded = jwt.verify(token, SECRET);
+        const decoded = jwt.verify(token, SECRET)
 
         // Buscar al usuario en la base de datos
         const user = await prisma.usuarios.findUnique({

@@ -14,6 +14,7 @@ import Producto from './routes/Producto.routes.js';
 import Prediccion from './routes/Prediccion.routes.js';
 import Carrito from './routes/Carrito.routes.js';
 import Pedido from './routes/Pedido.routes.js';
+import direcciones from './routes/Direccion.router.js';
 
 
 
@@ -100,6 +101,7 @@ app.use('/api/productos', Producto);
 app.use('/api/prediccion', Prediccion);
 app.use('/api/carrito', Carrito);
 app.use('/api/pedidos', Pedido);
+app.use('/api/direcciones',direcciones)
 // Ruta de prueba
 app.get('/', (req, res) => {
   res.json({ 

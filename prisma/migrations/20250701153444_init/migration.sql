@@ -83,7 +83,6 @@ CREATE TABLE [dbo].[Detalle_Pedido] (
     [id] INT NOT NULL IDENTITY(1,1),
     [pedidoId] INT NOT NULL,
     [productoId] INT NOT NULL,
-    [tamanoId] INT NOT NULL,
     [cantidad] INT NOT NULL,
     [precio_unitario] FLOAT(53) NOT NULL,
     CONSTRAINT [Detalle_Pedido_pkey] PRIMARY KEY CLUSTERED ([id])
@@ -133,15 +132,16 @@ CREATE TABLE [dbo].[Sales] (
 );
 
 -- CreateTable
-CREATE TABLE [dbo].[Promocion] (
+CREATE TABLE [dbo].[Promociones] (
     [id] INT NOT NULL IDENTITY(1,1),
     [titulo] NVARCHAR(1000) NOT NULL,
     [descripcion] NVARCHAR(1000),
     [fechaInicio] DATETIME2 NOT NULL,
     [fechaFin] DATETIME2,
-    [activo] BIT NOT NULL CONSTRAINT [Promocion_activo_df] DEFAULT 1,
+    [activo] BIT NOT NULL CONSTRAINT [Promociones_activo_df] DEFAULT 1,
+    [descuento] INT NOT NULL,
     [productoId] INT NOT NULL,
-    CONSTRAINT [Promocion_pkey] PRIMARY KEY CLUSTERED ([id])
+    CONSTRAINT [Promociones_pkey] PRIMARY KEY CLUSTERED ([id])
 );
 
 -- CreateTable
@@ -234,7 +234,7 @@ CREATE NONCLUSTERED INDEX [Sales_usuarioId_idx] ON [dbo].[Sales]([usuarioId]);
 CREATE NONCLUSTERED INDEX [Sales_fechaVenta_idx] ON [dbo].[Sales]([fechaVenta]);
 
 -- CreateIndex
-CREATE NONCLUSTERED INDEX [Promocion_productoId_idx] ON [dbo].[Promocion]([productoId]);
+CREATE NONCLUSTERED INDEX [Promociones_productoId_idx] ON [dbo].[Promociones]([productoId]);
 
 -- AddForeignKey
 ALTER TABLE [dbo].[LoginHistory] ADD CONSTRAINT [LoginHistory_usuarioId_fkey] FOREIGN KEY ([usuarioId]) REFERENCES [dbo].[Usuarios]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -276,7 +276,7 @@ ALTER TABLE [dbo].[Sales] ADD CONSTRAINT [Sales_productoId_fkey] FOREIGN KEY ([p
 ALTER TABLE [dbo].[Sales] ADD CONSTRAINT [Sales_usuarioId_fkey] FOREIGN KEY ([usuarioId]) REFERENCES [dbo].[Usuarios]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE [dbo].[Promocion] ADD CONSTRAINT [Promocion_productoId_fkey] FOREIGN KEY ([productoId]) REFERENCES [dbo].[Productos]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE [dbo].[Promociones] ADD CONSTRAINT [Promociones_productoId_fkey] FOREIGN KEY ([productoId]) REFERENCES [dbo].[Productos]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
 
 COMMIT TRAN;
 
