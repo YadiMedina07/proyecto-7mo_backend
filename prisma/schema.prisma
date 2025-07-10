@@ -30,7 +30,7 @@ model Usuarios {
   carrito             Carrito[]
   loginHistory        LoginHistory[]
   pedidos             Pedidos[]
-  reviews             Reviews[]
+  review             Review[]
   sales               Sales[]
   direcciones         Direccion[]  
 }
@@ -58,7 +58,7 @@ model Productos {
   detallePedido Detalle_Pedido[]
   imagenes      ImagenesProductos[]
   promociones   Promociones[]
-  reviews       Reviews[]
+  review       Review[]
   sales         Sales[]
 }
 
@@ -71,7 +71,7 @@ model ImagenesProductos {
   @@index([productoId], map: "ImagenesProductos_productoId_fkey")
 }
 
-model Reviews {
+model Review {
   id         Int       @id @default(autoincrement())
   productoId Int
   usuarioId  Int
@@ -81,8 +81,8 @@ model Reviews {
   producto   Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
   usuario    Usuarios  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
-  @@index([productoId], map: "Reviews_productoId_fkey")
-  @@index([usuarioId], map: "Reviews_usuarioId_fkey")
+  @@index([productoId], map: "Review_productoId_fkey")
+  @@index([usuarioId], map: "Review_usuarioId_fkey")
 }
 
 model Pedidos {

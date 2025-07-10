@@ -185,7 +185,7 @@ export const obtenerProductosAdmin = async (req, res) => {
     const productos = await prisma.Productos.findMany({
       include: {
         imagenes: true,
-        reviews: true, // Si no necesitas las reviews, puedes quitar esta línea
+        review: true, // Si no necesitas las reviews, puedes quitar esta línea
       },
       orderBy: {
         createdAt: "desc",

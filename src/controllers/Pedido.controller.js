@@ -2,10 +2,10 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export const crearPedido = async (req, res) => {
-    try {
+  try {
     const usuarioId = req.userId;
 
-    // 1. Traer todos los items del carrito del usuario
+    // 1. Traer items del carrito
     const carritoItems = await prisma.Carrito.findMany({
       where: { usuarioId },
       include: { producto: true }
@@ -14,42 +14,51 @@ export const crearPedido = async (req, res) => {
       return res.status(400).json({ message: "Tu carrito está vacío" });
     }
 
-    // 2. Calcular totl y preparar data de detalle
+    // 2. Verificar stock y preparar detalles
     let total = 0;
-    const detalleData = carritoItems.map(item => {
+    for (const item of carritoItems) {
+      if (item.producto.stock < item.cantidad) {
+        return res.status(400).json({
+          message: `No hay suficiente stock de "${item.producto.name}". Disponibles: ${item.producto.stock}`
+        });
+      }
       total += item.cantidad * item.producto.precio;
-      return {
-        productoId: item.productoId,
-        cantidad: item.cantidad,
-        precio_unitario: item.producto.precio
-      };
-    });
+    }
+    const detalleData = carritoItems.map(item => ({
+      productoId: item.productoId,
+      cantidad: item.cantidad,
+      precio_unitario: item.producto.precio
+    }));
 
-    // 3. Crear Pedido + Detalle_Pedido + vaciar carrito en una transacción
+    // 3. Transacción: crear pedido, detalle, actualizar stock, limpiar carrito
     const nuevoPedido = await prisma.$transaction(async (tx) => {
-      // 3.1 crear registro en Pedidos
+      // 3.1 Crear pedido
       const pedido = await tx.Pedidos.create({
         data: {
           usuarioId,
           fecha_pedido: new Date(),
-          estado: "EN ESPERA",
+          estado: "RECIBIDO",
           total
         }
       });
 
-      // 3.2 crear múltiples registros en Detalle_Pedido
-      const detalleConPedido = detalleData.map(d => ({
+      // 3.2 Crear detalle
+      const detallesConPedido = detalleData.map(d => ({
         ...d,
         pedidoId: pedido.id
       }));
-      await tx.Detalle_Pedido.createMany({
-        data: detalleConPedido
-      });
+      await tx.Detalle_Pedido.createMany({ data: detallesConPedido });
 
-      // 3.3 limpiar carrito del usuario
-      await tx.Carrito.deleteMany({
-        where: { usuarioId }
-      });
+      // 3.3 Decrementar stock
+      for (const { productoId, cantidad } of detalleData) {
+        await tx.Productos.update({
+          where: { id: productoId },
+          data: { stock: { decrement: cantidad } }
+        });
+      }
+
+      // 3.4 Vaciar carrito
+      await tx.Carrito.deleteMany({ where: { usuarioId } });
 
       return pedido;
     });
@@ -59,7 +68,7 @@ export const crearPedido = async (req, res) => {
     console.error("Error creando pedido:", error);
     return res.status(500).json({ message: "Error interno del servidor" });
   }
-
+  
 };
 
 
