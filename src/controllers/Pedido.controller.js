@@ -25,14 +25,14 @@ export const crearPedido = async (req, res) => {
       total += item.cantidad * item.producto.precio;
     }
     const detalleData = carritoItems.map(item => ({
-      productoId: item.productoId,
-      cantidad: item.cantidad,
+      productoId:      item.productoId,
+      cantidad:        item.cantidad,
       precio_unitario: item.producto.precio
     }));
 
-    // 3. Transacción: crear pedido, detalle, actualizar stock, limpiar carrito
+    // 3. Transacción: crear pedido, detalle, registrar ventas, actualizar stock, limpiar carrito
     const nuevoPedido = await prisma.$transaction(async (tx) => {
-      // 3.1 Crear pedido
+      // 3.1 Crear pedido maestro
       const pedido = await tx.Pedidos.create({
         data: {
           usuarioId,
@@ -42,14 +42,25 @@ export const crearPedido = async (req, res) => {
         }
       });
 
-      // 3.2 Crear detalle
+      // 3.2 Crear detalle del pedido
       const detallesConPedido = detalleData.map(d => ({
         ...d,
         pedidoId: pedido.id
       }));
       await tx.Detalle_Pedido.createMany({ data: detallesConPedido });
 
-      // 3.3 Decrementar stock
+      // 3.3 Registrar cada línea como venta en Sales
+      const ventasData = detalleData.map(d => ({
+        productoId:     d.productoId,
+        usuarioId,                          // misma variable
+        fechaVenta:     new Date(),
+        cantidad:       d.cantidad,
+        precioUnitario: d.precio_unitario,
+        total:          d.precio_unitario * d.cantidad
+      }));
+      await tx.Sales.createMany({ data: ventasData });
+
+      // 3.4 Decrementar stock de cada producto
       for (const { productoId, cantidad } of detalleData) {
         await tx.Productos.update({
           where: { id: productoId },
@@ -57,7 +68,7 @@ export const crearPedido = async (req, res) => {
         });
       }
 
-      // 3.4 Vaciar carrito
+      // 3.5 Vaciar carrito del usuario
       await tx.Carrito.deleteMany({ where: { usuarioId } });
 
       return pedido;
@@ -68,7 +79,6 @@ export const crearPedido = async (req, res) => {
     console.error("Error creando pedido:", error);
     return res.status(500).json({ message: "Error interno del servidor" });
   }
-  
 };
 
 

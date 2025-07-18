@@ -151,20 +151,21 @@ export const eliminarProducto = async (req, res) => {
 };
 
 
-/**
- * Obtener un producto por ID
- */
 export const obtenerProductoPorId = async (req, res) => {
   try {
     const { id } = req.params;
     const numericId = Number(id);
 
-    const producto = await prisma.productos.findUnique({
+    const producto = await prisma.Productos.findUnique({
       where: { id: numericId },
       include: {
-        images: true,
-        compatibilities: true,
-        supplier: true,
+        imagenes: true,        // imágenes del producto
+        review: {
+          include: {
+            usuario: true,     // datos del usuario que hizo la reseña
+            images: true       // ✅ este es el campo correcto en tu schema.prisma
+          }
+        }
       },
     });
 
@@ -172,12 +173,14 @@ export const obtenerProductoPorId = async (req, res) => {
       return res.status(404).json({ message: "Producto no encontrado." });
     }
 
-    res.status(200).json(producto);
+    return res.status(200).json({ producto });
   } catch (error) {
     console.error("Error al obtener producto por ID:", error);
-    res.status(500).json({ message: "Error interno del servidor" });
+    return res.status(500).json({ message: "Error interno del servidor" });
   }
 };
+
+
 
 export const obtenerProductosAdmin = async (req, res) => {
   try {
@@ -285,3 +288,22 @@ export const obtenerProductosConYSinDescuento = async (req, res) => {
   }
 };
 
+
+/**
+ * Obtener productos con stock bajo (<= 3)
+ */
+export const obtenerProductosBajoStock = async (req, res) => {
+  try {
+    const productos = await prisma.Productos.findMany({
+      where: { stock: { lte: 3 } },
+      include: {
+        imagenes: true
+      },
+      orderBy: { stock: 'asc' }
+    });
+    res.status(200).json({ productos });
+  } catch (error) {
+    console.error("Error al obtener productos de bajo stock:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+};

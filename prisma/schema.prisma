@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
 
@@ -80,9 +80,17 @@ model Review {
   createdAt  DateTime  @default(now())
   producto   Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
   usuario    Usuarios  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  images     ReviewImage[] 
 
   @@index([productoId], map: "Review_productoId_fkey")
   @@index([usuarioId], map: "Review_usuarioId_fkey")
+}
+
+model ReviewImage {
+  id        Int     @id @default(autoincrement())
+  reviewId  Int
+  url       String  // URL devuelta por Cloudinary
+  review    Review  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 }
 
 model Pedidos {

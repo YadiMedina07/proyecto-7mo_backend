@@ -46,24 +46,42 @@ export const obtenerElegiblesParaResena = async (req, res) => {
 
 // 2. Crear reseña
 export const crearResena = async (req, res) => {
-  const usuarioId = req.userId;
+  const usuarioId  = req.userId;
   const { productoId, comment, rating } = req.body;
 
-  // opcional: validar que el usuario no reseñó ya este producto
+  // Validar duplicado
   const existente = await prisma.Review.findFirst({
-    where: { usuarioId, productoId }
+    where: { usuarioId, productoId: Number(productoId) }
   });
   if (existente) {
     return res.status(400).json({ message: "Ya has reseñado este producto" });
   }
 
+  // 1) Crear la reseña
   const review = await prisma.Review.create({
     data: {
-      usuarioId,
-      productoId,
+      usuarioId:  usuarioId,
+      productoId: Number(productoId),
       comment,
-      rating: Number(rating)
+      rating:     Number(rating),
     }
   });
-  res.status(201).json({ review });
+
+  // 2) Si llegaron archivos, creamos los ReviewImage
+  if (req.files && req.files.length) {
+    const imagesData = req.files.map(f => ({
+      reviewId: review.id,
+      url:      f.path  // multer-cloudinary deja la URL en `path`
+    }));
+    await prisma.ReviewImage.createMany({ data: imagesData });
+  }
+
+  // 3) Devolver la reseña con sus imágenes
+  const result = await prisma.Review.findUnique({
+    where: { id: review.id },
+    include: {
+      images: true
+    }
+  });
+  res.status(201).json({ review: result });
 };
