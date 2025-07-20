@@ -18,7 +18,7 @@ router.put('/:id', isAuthenticated, isAdmin, upload.array('images'), ProductosCo
 
 // Obtener todos los productos (público)
 router.get('/', ProductosController.obtenerProductosAdmin);
-router.get('/descuento', ProductosController.obtenerProductosConYSinDescuento);
+
 
 
 // Obtener producto por ID (público)

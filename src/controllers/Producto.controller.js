@@ -247,46 +247,7 @@ export const crearPromocion = async (req, res) => {
   }
 };
 
-export const obtenerProductosConYSinDescuento = async (req, res) => {
-  try {
-    // Obtener productos con promoción activa
-    const productosConDescuento = await prisma.Productos.findMany({
-      where: {
-        promociones: {
-          some: { activo: true, fechaInicio: { lte: new Date() }, OR: [{ fechaFin: null }, { fechaFin: { gte: new Date() } }] }
-        }
-      },
-      include: {
-        promociones: {
-          where: {
-            activo: true,
-            fechaInicio: { lte: new Date() },
-            OR: [{ fechaFin: null }, { fechaFin: { gte: new Date() } }]
-          },
-          take: 1, // Solo la primera promoción activa
-        }
-      }
-    });
 
-    // Obtener productos sin promoción activa
-    const productosSinDescuento = await prisma.Productos.findMany({
-      where: {
-        promociones: {
-          none: { activo: true, fechaInicio: { lte: new Date() }, OR: [{ fechaFin: null }, { fechaFin: { gte: new Date() } }] }
-        }
-      }
-    });
-
-    res.status(200).json({
-      productosConDescuento,
-      productosSinDescuento
-    });
-
-  } catch (error) {
-    console.error("Error al obtener productos:", error);
-    res.status(500).json({ message: "Error interno del servidor" });
-  }
-};
 
 
 /**
