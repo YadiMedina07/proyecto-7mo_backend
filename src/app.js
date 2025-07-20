@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
@@ -18,6 +20,7 @@ import direcciones from './routes/Direccion.router.js';
 import reviews from './routes/Review.routes.js';
 import ventas from './routes/ventas.routes.js';
 import contacto from './routes/contacto.routes.js';
+import paypalRoutes from './routes/Paypal.routes.js';
 
 
 
@@ -108,6 +111,7 @@ app.use('/api/direcciones',direcciones)
 app.use('/api/reviews', reviews);
 app.use('/api/ventas',ventas);
 app.use('/api/contactos',contacto);
+app.use('/api/paypal', paypalRoutes);
 // Ruta de prueba
 app.get('/', (req, res) => {
   res.json({ 
